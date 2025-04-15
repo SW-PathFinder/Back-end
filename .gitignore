@@ -1,0 +1,92 @@
+# -------------------------------
+# 1. Python
+# -------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore compiled files
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+
+# -------------------------------
+# 2. Django-specific
+# -------------------------------
+*.log
+*.pot
+*.pyc
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+uploads/
+*.db
+*.bak
+
+# -------------------------------
+# 3. Environment & Secrets
+# -------------------------------
+.env
+.env.*
+*.env
+.envrc
+.secret
+secrets/
+
+# -------------------------------
+# 4. Virtual Environments
+# -------------------------------
+venv/
+.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# -------------------------------
+# 5. macOS (for you!)
+# -------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# macOS folder attributes
+Icon?
+._*
+
+# -------------------------------
+# 6. Windows (for others!)
+# -------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# -------------------------------
+# 7. VSCode
+# -------------------------------
+.vscode/
+*.code-workspace
+
+# -------------------------------
+# 8. PyCharm
+# -------------------------------
+.idea/
+*.iml
+
+# -------------------------------
+# 9. Others (optional)
+# -------------------------------
+*.swp
+*.swo
+*.tmp
+*.orig
