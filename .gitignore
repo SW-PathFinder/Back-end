@@ -90,3 +90,5 @@ $RECYCLE.BIN/
 *.swo
 *.tmp
 *.orig
+apps/logic/gameTest.ipynb
+apps/logic/test.ipynb
