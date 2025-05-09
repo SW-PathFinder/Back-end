@@ -72,7 +72,15 @@ class Game:
                         self._nextTrun()
                     else:
                         self.tasks.append({"type":"error","data":result[1]})
-                
+                case "saboteur": # action = {"type":"saboteur","data":{"target":str,"cardType":str}}
+                    # 사보타주 행동
+                    result = self.players[action["target"]].setLimit(action["data"]["cardType"])
+                    if result == True:
+                        # 사보타주 성공
+                        self.tasks.append({"type":"saboteur","data":{"target":action["target"],"cardType":result[1]}})
+                        self._nextTrun()
+                    else:
+                        self.tasks.append({"type":"error","data":result[1]})
         else:
             # 현재 플레이어가 아님
             self.tasks.append({"type":"error","data":"not your turn"})
