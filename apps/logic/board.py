@@ -20,6 +20,52 @@ class Board:
         self.path = nx.Graph()
         self.board = self.createLayout()
 
+
+    def addCard(self, card, x, y, flip=False,rockfail=False):
+        # 게임 맵에 카드를 추가하는 로직
+        newCard = Card(card)
+        if flip:
+            newCard.reversePathCard()
+
+        if rockfail:
+            self.removeNetwork(x,y,self.board[x,y])
+            self.board[x,y] = newCard
+            self.addNetwork(x,y,newCard)
+            return True
+        elif not emptyVerification(self.board,x,y): #검증
+            return False ,"error emptyVerification"
+        elif not nearPathVerification(self.board,x,y,newCard.path): #검증
+            print("error nearPathVerification")
+            return False,"error nearPathVerification"
+        elif not self.totalPathVerification(x,y,newCard): #검증
+            print("error totalPathVerification")
+            return False,"error totalPathVerification"
+        else:
+            return True
+        
+    def rockFail(self, x, y):
+        # 돌이 부서지는 로직
+        # self.board[x][y] = Card(0)
+        if self.board[x][y].num>0:
+            for i,j in filter(lambda edge: edge[0] == (x,y) or edge[1] == (x,y), self.path.edges):
+                self.path.remove_edge(i,j)
+            self.path.nodes[(x,y)]['active'] = False
+            self.board[(x,y)] = Card(0)
+            self.addNetwork(x,y,self.board[x,y])
+            return True
+        else:
+            return False,"error rockFail"
+    def viewMap(self, x, y):
+        if self.gold == (x,y):
+            # 보물찾기 성공
+            return True,"gold"
+        elif self.rock[0] == (x,y) or self.rock[1] == (x,y):
+            # 돌 찾기 성공
+            return True,"rock"
+        else:
+            # 아무것도 없음
+            return False,"잘못된 위치정보입니다."
+
     def checkEnd(self):
         if self.activeHasPath(self.path,self.home,self.gold):
             print("game end")
@@ -69,27 +115,7 @@ class Board:
             self.path.remove_edge(i,j)
             self.path.nodes[(x,y)]['active'] = False
         
-    def addCard(self, card, x, y, flip=False,rockfail=False):
-        # 게임 맵에 카드를 추가하는 로직
-        newCard = Card(card)
-        if flip:
-            newCard.reversePathCard()
-
-        if rockfail:
-            self.removeNetwork(x,y,self.board[x,y])
-            self.board[x,y] = newCard
-            self.addNetwork(x,y,newCard)
-            return True
-        elif not emptyVerification(self.board,x,y): #검증
-            return False ,"error emptyVerification"
-        elif not nearPathVerification(self.board,x,y,newCard.path): #검증
-            print("error nearPathVerification")
-            return False,"error nearPathVerification"
-        elif not self.totalPathVerification(x,y,newCard): #검증
-            print("error totalPathVerification")
-            return False,"error totalPathVerification"
-        else:
-            return True
+    
 
     ####Verification####
     def totalPathVerification(self,x,y,newCard):
@@ -110,18 +136,7 @@ class Board:
         G_active = path.subgraph(active_nodes)
         return nx.has_path(G_active, source, target)
     
-    def rockFail(self, x, y):
-        # 돌이 부서지는 로직
-        # self.board[x][y] = Card(0)
-        if self.board[x][y].num>0:
-            for i,j in filter(lambda edge: edge[0] == (x,y) or edge[1] == (x,y), self.path.edges):
-                self.path.remove_edge(i,j)
-            self.path.nodes[(x,y)]['active'] = False
-            self.board[(x,y)] = Card(0)
-            self.addNetwork(x,y,self.board[x,y])
-            return True
-        else:
-            return False,"error rockFail"
+    
 
     def showBoard(self):
         rows, cols = self.board.shape
