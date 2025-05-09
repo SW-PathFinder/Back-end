@@ -1,6 +1,5 @@
 from board import Board
 from player import Player
-from Status import Status
 from itertools import cycle
 from card import Card
 import random
