@@ -25,3 +25,13 @@ class Player:
             return True
         else:
             return False, "이미 제한된 장비입니다."
+    def repairLimit(self, cardType:list[str]):
+        for card in cardType:
+            if self.limit[card] == True:
+                self.limit[card] = False
+            else:
+                cardType.remove(card)
+        if cardType:
+            return True , cardType
+        else:
+            return False, "수리할 수 있는 장비가 없습니다."
