@@ -89,6 +89,15 @@ class Game:
                         self._nextTrun()
                     else:
                         self.tasks.append({"type":"error","data":result[1]})
+                case "viewMap": # action = {"type":"viewMap","data":{"x":x,"y":y}}
+                    # 맵 보기
+                    result = self.board.viewMap(action["data"]["x"],action["data"]["y"])
+                    if result == True:
+                        # 맵 보기 성공
+                        self.tasks.append({"type":"viewMap","data":{"x":action["data"]["x"],"y":action["data"]["y"]}})
+                        self._nextTrun()
+                    else:
+                        self.tasks.append({"type":"error","data":result[1]})
         else:
             # 현재 플레이어가 아님
             self.tasks.append({"type":"error","data":"not your turn"})
