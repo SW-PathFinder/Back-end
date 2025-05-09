@@ -6,12 +6,12 @@ import random
 class Game:
     def __init__(self):
         self.players = {}      # 플레이어 객체들을 저장
-        self.game_state = "init"  # 게임 상태: "init", "playing", "ended"
+        self.gameState = "init"  # 게임 상태: "init", "playing", "ended"
         self.tasks = []           # [{type:"path"|"action", "data":{}}]
         self.board = Board(self)
         self.cards = {}
-        self.current_player = 0  # 현재 플레이어의 인덱스
-        self.current_round = 0   # 현재 라운드
+        self.currentPlayer = 0  # 현재 플레이어의 인덱스
+        self.currentRound = 0   # 현재 라운드
         self.status = "ready" # 게임 상태: "ready", "playing", "ended"
         
 
@@ -19,59 +19,60 @@ class Game:
 
 
 ##### 대기실 #######
-    def addPlayer(self, player):
+    def addPlayer(self, player:str):
         self.players[player] = Player(player)
         pass
-    def exitPlayer(self, player):
+    def exitPlayer(self, player:str):
         self.players.pop(player)
         pass
     def startGame(self):
-        self.game_state = "playing"
+        self.gameState = "playing"
         # self.players의 순서를 랜덤으로
         playersKeys = list(self.players.keys())
         random.shuffle(playersKeys)
         self.players = {key: self.players[key] for key in playersKeys}
-        self.current_player = cycle(self.players.keys())
+        self.currentPlayer = cycle(self.players.keys())
 
         pass
     
 
 ##### 인게임 #######
     def roundStart(self,first_player = 0):
-        self.shuffulePlayerRoles()
-        self.shuffuleCards()
+        self._shuffulePlayerRoles()
+        self._shuffuleCards()
         for player in self.players.values():
             print(f"{player.name} : {player.role} | {player.hand}")
         # print([(player.role, player.name, player.hand) for player in self.players.values()])
-        self.current_round +=1
-        self.current_player = first_player
+        self.currentRound +=1
+        self.currentPlayer = first_player
         return {"type":"status","data":self}
         
     def action(self, player, action):
         # 플레이어가 행동을 수행
-        if player == self.current_player:
+        if player == self.currentPlayer:
             # 행동 수행
             print("action : ",action)
             match action["type"]:
-                case "path":
+                case "path": # action = {"type":"path","data":{"x":x,"y":y,"card":card}}
                     # 경로 추가
                     result = self.board.addCard( action["data"]["card"],action["data"]["x"], action["data"]["y"])
                     print("Result : ",result)
                     if result == True:
                         # 경로 추가 성공
                         self.tasks.append({"type":"path","data":{"x":action["data"]["x"],"y":action["data"]["y"],"card":action["data"]["card"]}})
-                        self.nextTrun()
+                        self._nextTrun()
                     else:
                         self.tasks.append({"type":"error","data":result[1]})
 
-                case "rockFail":
+                case "rockFail": # action = {"type":"rockFail","data":{"x":x,"y":y}}
                     result = self.board.rockFail(action["data"]["x"],action["data"]["y"])
                     if result == True:
                         # 경로 추가 성공
                         self.tasks.append({"type":"rockFail","data":{"x":action["data"]["x"],"y":action["data"]["y"]}})
-                        self.nextTrun()
+                        self._nextTrun()
                     else:
                         self.tasks.append({"type":"error","data":result[1]})
+                
         else:
             # 현재 플레이어가 아님
             self.tasks.append({"type":"error","data":"not your turn"})
@@ -83,13 +84,13 @@ class Game:
 
 
 
-    def nextTrun(self):
+    def _nextTrun(self):
         # 다음 턴으로 넘어감
-        self.current_player +=1
-        self.current_player %= len(self.players)
-        self.tasks.append({"type":"turn_change","data":self.current_player})
+        self.currentPlayer +=1
+        self.currentPlayer %= len(self.players)
+        self.tasks.append({"type":"turn_change","data":self.currentPlayer})
 
-    def shuffuleCards(self):
+    def _shuffuleCards(self):
         # 카드 섞기
         self.cardIndexes = [1]*4 + [2]*4 + [3]*4 + [4]*4 + [5]*4 + [6]*4 + [7]*4 + [8]*4 + [9]*4 + [10]*3 + [11]*3 + [12]*3 + [13]*3 + [14]*3 + [15]*3 + [16]*3 + [17]*3 + [18]*3 + [19]*3 + [20]*2 + [21]*2 + [22]*2 + [23] + [24] + [25] + [26]*6 + [27]*3
         self.cards = [Card(i) for i in self.cardIndexes]
@@ -118,7 +119,7 @@ class Game:
         # print(self.cards)
 
 
-    def shuffulePlayerRoles(self):
+    def _shuffulePlayerRoles(self):
         match len(self.players):
             case 3:
                 self.roles = ["saboteur", "worker", "worker", "worker"]
