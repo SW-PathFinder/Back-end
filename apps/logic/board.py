@@ -18,16 +18,16 @@ class Board:
         print(f"home: {self.home}, gold: {self.gold}, rock: {self.rock}")
 
         self.path = nx.Graph()
-        self.board = self.create_layout()
+        self.board = self.createLayout()
 
     def checkEnd(self):
-        if self.active_has_path(self.path,self.home,self.gold):
+        if self.activeHasPath(self.path,self.home,self.gold):
             print("game end")
             return {'type':'gold'}
-        elif self.active_has_path(self.path,self.home,self.rock[0]) :
+        elif self.activeHasPath(self.path,self.home,self.rock[0]) :
             print(f"arrive rock {self.rock[0]}")
             return {'type':"rock", "info":self.rock[0]}
-        elif self.active_has_path(self.path,self.home,self.rock[1]) :
+        elif self.activeHasPath(self.path,self.home,self.rock[1]) :
             print(f"arrice rock {self.rock[1]}")
             return {'type':"rock", "info":self.rock[1]}
         else:
@@ -35,7 +35,7 @@ class Board:
             return False
 
     # 보드 초기화
-    def create_layout(self):
+    def createLayout(self):
         board = np.full((22, 22), Card(0))
         for i in range(22):
             for j in range(22):
@@ -97,14 +97,14 @@ class Board:
         board = deepcopy(self.board)
         self.board[x][y] = newCard
         self.addNetwork(x,y,newCard)
-        if self.active_has_path(self.path,self.home,(x,y)):
+        if self.activeHasPath(self.path,self.home,(x,y)):
             return True
         else:
             self.path = path
             self.board = board
             return False
     
-    def active_has_path(self, path, source, target):
+    def activeHasPath(self, path, source, target):
         # 활성화된 노드들만 포함한 서브그래프 생성
         active_nodes = [n for n, attr in path.nodes(data=True) if attr.get('active', True)]
         G_active = path.subgraph(active_nodes)
