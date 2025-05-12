@@ -92,9 +92,9 @@ class Game:
                 case "viewMap": # action = {"type":"viewMap","data":{"x":x,"y":y}}
                     # 맵 보기
                     result = self.board.viewMap(action["data"]["x"],action["data"]["y"])
-                    if result == True:
+                    if result[0] == True:
                         # 맵 보기 성공
-                        self.tasks.append({"type":"viewMap","data":{"x":action["data"]["x"],"y":action["data"]["y"]}})
+                        self.tasks.append({"type":"viewMap","data":{"data":result[1]}})
                         self._nextTrun()
                     else:
                         self.tasks.append({"type":"error","data":result[1]})
