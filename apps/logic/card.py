@@ -5,9 +5,10 @@ class Card:
         self.num = num
         self.Info = getCardType(num,hint)
         print(self.Info)
-        self.type = self.Info["type"]
+        self.type = self.Info.get("type",None)
         self.path = self.Info['info'][:-1]
         self.flip = self.Info['info'][-1]
+        self.info = self.Info.get('info')
         self.map = self.Info.get('map')
     def reversePathCard(self):
         def flip_map(map_array):
@@ -43,7 +44,7 @@ class Card:
 
 def getCardType(cardTtype, hint=""):
     match cardTtype:
-        case -5:  # 금!!!!
+        case -6:  # 금!!!!
             return {
                 "type": "path",
                 "info": [(1,2,3,4), False],
@@ -55,7 +56,7 @@ def getCardType(cardTtype, hint=""):
                     list("┕-----┚")
                 ])
             }
-        case -4:  # 금!!!!
+        case -5:  # 금!!!!
             return {
                 "type": "path",
                 "info": [(1,2,3,4), False],
@@ -65,6 +66,18 @@ def getCardType(cardTtype, hint=""):
                     list("|#####|"),
                     list("|hiden|"),
                     list("┕-----┚")
+                ])
+            }
+        case -4:  # 돌~!~!
+            return {
+                "type": "path",
+                "info": [(1,2), False],
+                "map": np.array([
+                    list("┏-----┓"),
+                    list("|     |"),
+                    list("┣--┓  |"),
+                    list("|##|  |"),
+                    list("┕--┻--┚")
                 ])
             }
         case -3:  # 돌~!~!
@@ -322,25 +335,25 @@ def getCardType(cardTtype, hint=""):
 
         
         case 17: # 3
-            return {"type":"action","info":("sabotage","mineCart")}
+            return {"type":"sabotage","info":"mineCart"}
         case 18: # 3
-            return {"type":"action","info":("sabotage","lentern")}
+            return {"type":"sabotage","info":"lantern"}
         case 19: # 3
-            return {"type":"action","info":("sabotage","pickax")}
+            return {"type":"sabotage","info":"pickaxe"}
         case 20: # 2
-            return {"type":"action","info":("repair",["mineCart"])}
+            return {"type":"repair","info":["mineCart"]}
         case 21: # 2
-            return {"type":"action","info":("repair",["lentern"])}
+            return {"type":"repair","info":["lantern"]}
         case 22: # 2
-            return {"type":"action","info":("repair",["pickax"])}
+            return {"type":"repair","info":["pickaxe"]}
         case 23: # 1
-            return {"type":"action","info":("repair",["mineCart","lentern"])}
+            return {"type":"repair","info":["mineCart","lantern"]}
         case 24: # 1
-            return {"type":"action","info":("repair",["mineCart","pickax"])}
+            return {"type":"repair","info":["mineCart","pickaxe"]}
         case 25: # 1
-            return {"type":"action","info":("repair",["lentern","pickax"])}
+            return {"type":"repair","info":["lantern","pickaxe"]}
         case 26: # 6
-            return {"type":"action","info":("viewMap",)}
+            return {"type":"viewMap","info":"viewMap"}
         case 27: # 3
-            return {"type":"action","info":("rockFail",)}
+            return {"type":"rockFail","info":"rockFail"}
         
