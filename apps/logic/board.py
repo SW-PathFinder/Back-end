@@ -23,7 +23,8 @@ class Board:
 
     def addCard(self, card, x, y, flip=False,rockfail=False):
         # 게임 맵에 카드를 추가하는 로직
-        newCard = Card(card)
+        # newCard = Card(card)
+        newCard = card
         if flip:
             newCard.reversePathCard()
 
@@ -89,7 +90,7 @@ class Board:
                 self.path.add_node((i,j))
         nx.set_node_attributes(self.path, False, 'active')
         board[*self.home] = Card(-1)
-        board[*self.gold] = Card(-4)
+        board[*self.gold] = Card(-5)
         board[*self.rock[0]] = Card(-2)
         board[*self.rock[1]] = Card(-2)
         self.addNetwork(10,5,board[10,5])
@@ -101,6 +102,7 @@ class Board:
 
     def addNetwork(self, x,y,card):
         for path in card.path:
+            print(path)
             if 1 in path and 0 not in path:
                 self.path.add_edge((x,y),(x-1,y))
             if 2 in path and 0 not in path:
@@ -109,7 +111,9 @@ class Board:
                 self.path.add_edge((x,y),(x+1,y))
             if 4 in path and 0 not in path:
                 self.path.add_edge((x,y),(x,y-1))
-            self.path.nodes[(x,y)]['active'] = True
+        print("cardpath" )
+        self.path.nodes[(x,y)]['active'] = 0 not in card.path
+        print(self.path.edges)
     def removeNetwork(self, x,y,card):
         for i,j in filter(lambda x: x[0] == (10,7) or x[1] == (10,7), self.path.edges):
             self.path.remove_edge(i,j)
@@ -123,7 +127,24 @@ class Board:
         board = deepcopy(self.board)
         self.board[x][y] = newCard
         self.addNetwork(x,y,newCard)
+        actvate = self.path.nodes[(x,y)]['active']
+        self.path.nodes[(x,y)]['active'] = True
         if self.activeHasPath(self.path,self.home,(x,y)):
+            #경로 출력
+            print("path: ",nx.shortest_path(self.path,self.home,(x,y)))
+            self.path.nodes[(x,y)]['active'] = actvate
+            return True
+        elif self.activeHasPath(self.path,self.home,(x-1,y)) and (1,0) in newCard.path:
+            self.path.nodes[(x,y)]['active'] = actvate
+            return True
+        elif self.activeHasPath(self.path,self.home,(x,y+1)) and (2,0) in newCard.path:
+            self.path.nodes[(x,y)]['active'] = actvate
+            return True
+        elif self.activeHasPath(self.path,self.home,(x+1,y)) and (3,0) in newCard.path:
+            self.path.nodes[(x,y)]['active'] = actvate
+            return True
+        elif self.activeHasPath(self.path,self.home,(x,y-1)) and (4,0) in newCard.path:
+            self.path.nodes[(x,y)]['active'] = actvate
             return True
         else:
             self.path = path
@@ -132,10 +153,12 @@ class Board:
     
     def activeHasPath(self, path, source, target):
         # 활성화된 노드들만 포함한 서브그래프 생성
-        active_nodes = [n for n, attr in path.nodes(data=True) if attr.get('active', True)]
-        G_active = path.subgraph(active_nodes)
-        return nx.has_path(G_active, source, target)
-    
+        try:
+            active_nodes = [n for n, attr in path.nodes(data=True) if attr.get('active', True)]
+            G_active = path.subgraph(active_nodes)
+            return nx.has_path(G_active, source, target)
+        except:
+            return False
     
 
     def showBoard(self):
