@@ -70,16 +70,41 @@ class Board:
     def checkEnd(self):
         if self.activeHasPath(self.path,self.home,self.gold):
             print("game end")
-            return {'type':'gold'}
-        elif self.activeHasPath(self.path,self.home,self.rock[0]) :
+            return True, "gold", self.gold
+        elif self.activeHasPath(self.path,self.home,self.rock[0]) and self.board[self.rock[0]].num in (-2,-4): 
+            newCard = Card(self.board[self.rock[0]].num-1)
+            # 근접 카드 위치에 따라 카드 reverse
+            if self.board[(self.rock[0][0],self.rock[0][1]-1)].num != 0 and 4 in newCard.path :
+                pass
+            elif self.board[(self.rock[0][0]-1,self.rock[0][1])].num != 0 and 1 in newCard.path:
+                pass
+            elif self.board[(self.rock[0][0],self.rock[0][1]+1)].num != 0 and 2 in newCard.path:
+                pass
+            elif self.board[(self.rock[0][0]+1,self.rock[0][1])].num != 0 and 3 in newCard.path:
+                pass
+            else:
+                newCard.reversePathCard()
+            self.board[self.rock[0]] = newCard
             print(f"arrive rock {self.rock[0]}")
-            return {'type':"rock", "info":self.rock[0]}
-        elif self.activeHasPath(self.path,self.home,self.rock[1]) :
+            return True, "rock", self.rock[0]
+        elif self.activeHasPath(self.path,self.home,self.rock[1]) and self.board[self.rock[1]].num in (-2,-4): 
+            newCard = Card(self.board[self.rock[1]].num-1)
+            if self.board[(self.rock[1][0],self.rock[1][1]-1)].num != 0 and 4 in newCard.path :
+                pass
+            elif self.board[(self.rock[1][0]-1,self.rock[1][1])].num != 0 and 1 in newCard.path:
+                pass
+            elif self.board[(self.rock[1][0],self.rock[1][1]+1)].num != 0 and 2 in newCard.path:
+                pass
+            elif self.board[(self.rock[1][0]+1,self.rock[1][1])].num != 0 and 3 in newCard.path:
+                pass
+            else:
+                newCard.reversePathCard()
+            self.board[self.rock[1]] = newCard
             print(f"arrice rock {self.rock[1]}")
-            return {'type':"rock", "info":self.rock[1]}
+            return True, "rock", self.rock[1]
         else:
             print("game continue")
-            return False
+            return False, "None"
 
     # 보드 초기화
     def createLayout(self):
@@ -90,8 +115,8 @@ class Board:
                 self.path.add_node((i,j))
         nx.set_node_attributes(self.path, False, 'active')
         board[*self.home] = Card(-1)
-        board[*self.gold] = Card(-5)
-        board[*self.rock[0]] = Card(-2)
+        board[*self.gold] = Card(-6)
+        board[*self.rock[0]] = Card(-4)
         board[*self.rock[1]] = Card(-2)
         self.addNetwork(10,5,board[10,5])
         self.addNetwork(self.gold[0],self.gold[1],board[self.gold[0],self.gold[1]])
@@ -113,7 +138,7 @@ class Board:
                 self.path.add_edge((x,y),(x,y-1))
         print("cardpath" )
         self.path.nodes[(x,y)]['active'] = 0 not in card.path
-        print(self.path.edges)
+        # print(self.path.edges)
     def removeNetwork(self, x,y,card):
         for i,j in filter(lambda x: x[0] == (10,7) or x[1] == (10,7), self.path.edges):
             self.path.remove_edge(i,j)
