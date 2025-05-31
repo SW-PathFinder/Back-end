@@ -4,7 +4,7 @@ class Card:
     def __init__(self,num,hint=""):
         self.num = num
         self.Info = getCardType(num,hint)
-        print(self.Info)
+        # print(self.Info)
         self.type = self.Info.get("type",None)
         self.path = self.Info['info'][:-1]
         self.flip = self.Info['info'][-1]
@@ -44,7 +44,7 @@ class Card:
 
 def getCardType(cardTtype, hint=""):
     match cardTtype:
-        case -6:  # 금!!!!
+        case -7:  # 금!!!!
             return {
                 "type": "path",
                 "info": [(1,2,3,4), False],
@@ -56,7 +56,7 @@ def getCardType(cardTtype, hint=""):
                     list("┕-----┚")
                 ])
             }
-        case -5:  # 금!!!!
+        case -6:  # 금!!!!
             return {
                 "type": "path",
                 "info": [(1,2,3,4), False],
@@ -68,15 +68,27 @@ def getCardType(cardTtype, hint=""):
                     list("┕-----┚")
                 ])
             }
-        case -4:  # 돌~!~!
+        case -5:  # 돌~!~!
             return {
                 "type": "path",
-                "info": [(1,2), False],
+                "info": [(2,3), False],
                 "map": np.array([
                     list("┏-----┓"),
                     list("|     |"),
-                    list("┣--┓  |"),
-                    list("|##|  |"),
+                    list("|  ┏--┫"),
+                    list("|  |##|"),
+                    list("┕--┻--┚")
+                ])
+            }
+        case -4:  # 돌~!~!
+            return {
+                "type": "path",
+                "info": [(1,2,3,4), False],
+                "map": np.array([
+                    list("┏-----┓"),
+                    list("|hiden|"),
+                    list("|  ┏--┫"),
+                    list("|  |##|"),
                     list("┕--┻--┚")
                 ])
             }

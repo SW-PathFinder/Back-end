@@ -10,6 +10,7 @@ class Game:
         self.tasks = []           # [{type:"path"|"action", "data":{}}]
         self.board = Board(self)
         self.cards = []
+        self.goldCard = []
         self.currentPlayer = ""  # 현재 플레이어의 인덱스
         self.currentRound = 0   # 현재 라운드
         self.status = "ready" # 게임 상태: "ready", "playing", "ended"
@@ -25,6 +26,7 @@ class Game:
         pass
     def startGame(self):
         self.gameState = "playing"
+        self._shuffleGoldCard()
         # self.players의 순서를 랜덤으로
         playersKeys = list(self.players.keys())
         random.shuffle(playersKeys)
@@ -35,27 +37,49 @@ class Game:
 
 ##### 인게임 #######
     def roundStart(self):
+        del self.board
+        self.board = Board(self)
+        self.cards = []
+
         self._shuffulePlayerRoles()
         self._shuffuleCards()
-        for player in self.players.values():
-            print(f"{player.name} : {player.role} | {player.hand}")
+        self.currentPlayer= list(self.players.keys())[0]#임시
+        self.currentRound += 1
+        # for player in self.players.values():
+            # print(f"{player.name} : {player.role} | {player.hand}")
         # print([(player.role, player.name, player.hand) for player in self.players.values()])
-        self.currentRound +=1
+        # self.currentRound +=1
 
         return {"type":"status","data":self}
     
 
     def action(self, player, action):
         # 플레이어가 행동을 수행
+        if action == "roundStart":
+            # 게임 시작
+            self.roundStart()
+            for name,player in self.players.items():
+                hand = [(card.num,card.flip) for card in player.hand]
+                self.tasks.append({"target":name,"type":"roundStart","data":{"hand":hand,"role":player.role,"currnetRound":self.currentRound}})
+            self.tasks.append({"target":"all","type":"turn_change","data":self.currentPlayer})
+            if self.currentRound == 1:
+                print("라운드 1이 시작됩니다.")
+                response = self.tasks.copy()
+                self.tasks.clear()
+                return response
+            else:
+                print("게임이 시작되었습니다.")
+                return None
+                
+
         if player == self.currentPlayer:
             # 행동 수행
             print("action : ",action)
             handNum = action["data"]["handNum"]
-            print(self.players[player].hand)
+            # print(self.players[player].hand)
             card = Card
             card = self.players[player].hand[handNum]
             
-            CardType = card.type
             x = action["data"].get("x",None)
             y = action["data"].get("y",None)
             target = action["data"].get("target",None)
@@ -150,17 +174,41 @@ class Game:
         # 3. 게임 종료 체크
         # 4. 다음 라운드 시작 체크
         # 5. 다음 턴 시작 체크
-        if self.board.checkEnd() == True:
-            self.tasks.append({"target":"all","type":"round_end","data":{"winner":player.role}})
-            # 누가 승자인지 테스크 추가
-            # gold 배분
-            # 현재 라운드가 <3 이면 다음 라운드 시작
-            # 현재 라운드가 3이면 게임 종료
-            if self.currentRound == 3:
-                self.tasks.append({"target":"all","type":"game_end","data":"game end"})
-                self.status = "ended"
-            else:
-                pass
+        checkEnd = self.board.checkEnd()
+        print(checkEnd)
+        end = checkEnd[0]
+        endType = checkEnd[1]
+        if end:
+            print()
+            endPosition =checkEnd[2]
+
+            if endType == "rock":
+                # 돌 찾기 성공
+                self.tasks.append({"target":"all","type":"rock_found","data":endPosition})
+            elif endType == "gold":
+                winner = self.players[self.currentPlayer]
+                self.tasks.append({"target":"all","type":"gold_found","data":endPosition})
+                self.tasks.append({"target":"all","type":"round_end","data":{"winner":winner.role}})
+                # self.tasks에서 type이 drawCard,turn_change는 삭제
+                self.tasks = [task for task in self.tasks if task["type"] not in ["drawCard", "turn_change"]]
+                # 금 배분
+                match winner.role:
+                    case "worker":
+                        "worker"
+                    case "saboteur":
+                        "saboteur"
+                        # 인원에 따라 고
+                if self.currentRound == 3:
+                    # 금 개수로 순위 매기기
+                    golds = {player: self.players[player].gold for player in self.players}
+                    sorted_golds = sorted(golds.items(), key=lambda x: x[1], reverse=True)
+                    print("금 순위:", sorted_golds)
+                    self.tasks.append({"target":"all","type":"game_end","data":{"rank":sorted_golds}})
+                else:
+                    print("라운드가 종료되었습니다.")
+
+
+                    self.action("all","roundStart")
         response = self.tasks.copy()
         self.tasks.clear()
         return response
@@ -194,6 +242,9 @@ class Game:
         # 카드 섞기
         self.cardIndexes = [1]*4 + [2]*4 + [3]*4 + [4]*4 + [5]*4 + [6]*4 + [7]*4 + [8]*4 + [9]*4 + [10]*3 + [11]*3 + [12]*3 + [13]*3 + [14]*3 + [15]*3 + [16]*3 + [17]*3 + [18]*3 + [19]*3 + [20]*2 + [21]*2 + [22]*2 + [23] + [24] + [25] + [26]*6 + [27]*3
         self.cards = [Card(i) for i in self.cardIndexes]
+        # players hand []
+        for player in self.players.values():
+            player.hand = []
         
         random.shuffle(self.cards)
         
@@ -248,3 +299,12 @@ class Game:
         pass
 
 
+    def _shuffleGoldCard(self):
+        # 
+        # 금 카드 섞기
+        # self.goldCard = 
+        random.shuffle(self.goldCard)
+        # print(self.goldCard)
+        for player in self.players.values():
+            player.gold = 0
+        pass
