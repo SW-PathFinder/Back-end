@@ -62,7 +62,7 @@ def create_voice_session(request):
 def join_voice_session(request):
     session_id = request.data.get("session_id")
     if not session_exists(session_id):
-        return Response({"error": "session not found"}, status=404)
+        return Response({"error": "Session not found"}, status=404)
 
     user_id = str(uuid4())
     add_participant(session_id, user_id)
