@@ -1,10 +1,10 @@
 # apps/saboteur/voiceChat/openvidu_api.py
 
 import requests
-
 import os
 
-OPENVIDU_URL = os.getenv("OPENVIDU_URL", "https://localhost:4443/openvidu")
+
+OPENVIDU_URL = os.getenv("OPENVIDU_URL")
 OPENVIDU_SECRET = os.getenv("OPENVIDU_SECRET")
 if not OPENVIDU_SECRET:
     raise ValueError("Environment variable OPENVIDU_SECRET is not set.")
