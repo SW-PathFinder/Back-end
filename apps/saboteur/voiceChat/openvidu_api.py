@@ -2,8 +2,12 @@
 
 import requests
 
-OPENVIDU_URL = "https://13.125.231.212:4443/openvidu"
-OPENVIDU_SECRET = "VidU_3xS7_kEy9-Z1"
+import os
+
+OPENVIDU_URL = os.getenv("OPENVIDU_URL", "https://localhost:4443/openvidu")
+OPENVIDU_SECRET = os.getenv("OPENVIDU_SECRET")
+if not OPENVIDU_SECRET:
+    raise ValueError("Environment variable OPENVIDU_SECRET is not set.")
 AUTH = ("OPENVIDUAPP", OPENVIDU_SECRET)
 
 
