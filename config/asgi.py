@@ -8,6 +8,9 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 """
 
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 # 환경 변수 로드
 BASE_DIR = Path(__file__).resolve().parent.parent
