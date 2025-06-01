@@ -127,7 +127,7 @@ class Board:
 
     def addNetwork(self, x,y,card):
         for path in card.path:
-            print(path)
+            # print(path)
             if 1 in path and 0 not in path:
                 self.path.add_edge((x,y),(x-1,y))
             if 2 in path and 0 not in path:
@@ -136,7 +136,7 @@ class Board:
                 self.path.add_edge((x,y),(x+1,y))
             if 4 in path and 0 not in path:
                 self.path.add_edge((x,y),(x,y-1))
-        print("cardpath" )
+        # print("cardpath" )
         self.path.nodes[(x,y)]['active'] = 0 not in card.path
         # print(self.path.edges)
     def removeNetwork(self, x,y,card):

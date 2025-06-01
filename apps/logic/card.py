@@ -7,7 +7,7 @@ class Card:
         # print(self.Info)
         self.type = self.Info.get("type",None)
         self.path = self.Info['info'][:-1]
-        self.flip = self.Info['info'][-1]
+        self.flip = self.Info['info'][-1] if type(self.Info['info'][-1])==bool else self.Info['info']
         self.info = self.Info.get('info')
         self.map = self.Info.get('map')
     def reversePathCard(self):
