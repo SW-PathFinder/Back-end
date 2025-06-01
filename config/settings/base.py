@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'apps.saboteur.voiceChat',
     'rest_framework',
     'corsheaders',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
