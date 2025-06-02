@@ -1,6 +1,5 @@
 import numpy as np
-from card import Card, getCardType
-# from verification import emptyVerification, nearPathVerification
+from .card import Card, getCardType
 import networkx as nx
 import random
 from copy import deepcopy
