@@ -19,7 +19,9 @@ def createOpenviduSession(sessionId: str) -> str:
         verify=settings.OPENVIDU_VERIFY_SSL
     )
     if response.status_code == 409:
-        return sessionId  # Already exists
+        raise requests.exceptions.HTTPError(
+            f"HTTP 409 Conflict: Session '{sessionId}' already exists."
+        )
     response.raise_for_status()
     return response.json()["id"]
 
