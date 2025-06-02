@@ -19,7 +19,9 @@ from .session_store import (
 urllib3.disable_warnings()
 
 # roomId → sessionId 매핑 저장
+import threading
 ROOM_SESSION_MAP = {}
+ROOM_SESSION_MAP_LOCK = threading.Lock()
 
 # sessionId → userId → OpenVidu token 캐시
 TOKEN_CACHE = {}
