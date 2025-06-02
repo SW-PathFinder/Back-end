@@ -182,7 +182,7 @@ def getSessionParticipants(request, sessionId):
     세션 참가자 목록 조회 API
     """
     if not sessionExists(sessionId):
-        return Response({"error": "session not found"}, status=404)
+        return Response({"error": "Session not found"}, status=404)
     return Response({"participants": getParticipants(sessionId)})
 
 
