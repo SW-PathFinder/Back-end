@@ -1,4 +1,5 @@
 # apps/saboteur/voice_chat/views.py
+from collections import deque
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -7,6 +8,7 @@ import traceback
 import time
 import requests
 from requests.exceptions import HTTPError
+import threading
 
 from .openvidu_client import createOpenviduSession, generateOpenviduToken
 from .session_store import (
@@ -19,15 +21,15 @@ from .session_store import (
 urllib3.disable_warnings()
 
 # roomId → sessionId 매핑 저장
-import threading
 ROOM_SESSION_MAP = {}
 ROOM_SESSION_MAP_LOCK = threading.Lock()
 
 # sessionId → userId → OpenVidu token 캐시
 TOKEN_CACHE = {}
 
-# 로그 기록용 리스트
-VOICE_SESSION_LOGS = []
+# 로그 기록용 (최근 1000개만 유지하여 메모리 누수 방지)
+VOICE_SESSION_LOGS = deque(maxlen=1000)
+
 
 @api_view(["POST"])
 def createVoiceSession(request):
