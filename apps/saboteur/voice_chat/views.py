@@ -58,6 +58,10 @@ def getVoiceToken(request):
     if not sessionExists(sessionId):
         return Response({"error": "Session not found"}, status=404)
 
+    #  참여자 아닌 경우 토큰 발급 거부
+    if userId not in getParticipants(sessionId):
+        return Response({"error": "User not in session"}, status=403)
+
     try:
         token = generateOpenviduToken(sessionId, userId)
     except Exception as e:
