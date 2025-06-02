@@ -11,6 +11,7 @@ OpenVidu 기반 n:n 음성채팅 기능 포함
 # 가상환경 생성 (최초 1회)
 python3 -m venv venv
 
+
 # 가상환경 활성화
 # macOS/Linux
 source venv/bin/activate

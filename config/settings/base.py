@@ -1,3 +1,5 @@
+#config/settings/base.py
+
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -5,13 +7,13 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / '.env', override=True)
 
-# === [환경 설정 값 읽기] ===
+# === [기본 환경 설정] ===
 SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '').split(',') if h.strip()]
 TIME_ZONE = os.getenv('TIME_ZONE', 'Asia/Seoul')
 
-# === [앱 설정 등은 동일하게 유지] ===
+# === [앱 설정] ===
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -19,7 +21,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.saboteur.voiceChat',
+    'apps.saboteur.voice_chat',
     'rest_framework',
     'corsheaders',
     'drf_yasg',
@@ -77,15 +79,12 @@ USE_TZ = True
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# 🔐 OpenVidu 연동 설정
+# === 🔐 OpenVidu 연동 설정 ===
 OPENVIDU_URL = os.getenv("OPENVIDU_URL")
 OPENVIDU_SECRET = os.getenv("OPENVIDU_SECRET")
-SESSION_TIMEOUT_MINUTES = int(os.getenv("SESSION_TIMEOUT_MINUTES", "60"))
 OPENVIDU_VERIFY_SSL = os.getenv("OPENVIDU_VERIFY_SSL", "false").lower() == "true"
+SESSION_TIMEOUT_SECONDS = int(os.getenv("SESSION_TIMEOUT_SECONDS", "3600"))
 
-# 🌐 CORS (React 연동)
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "https://your-frontend-domain.com",
-]
+# === 🌐 CORS 설정 ===
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin]
 CORS_ALLOW_CREDENTIALS = True
