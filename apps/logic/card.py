@@ -10,6 +10,18 @@ class Card:
         self.flip = self.Info['info'][-1] if type(self.Info['info'][-1])==bool else self.Info['info']
         self.info = self.Info.get('info')
         self.map = self.Info.get('map')
+    
+    def to_dict(self):
+        """Card 객체를 JSON 직렬화 가능한 딕셔너리로 변환"""
+        return {
+            "num": self.num,
+            "type": self.type,
+            "path": self.path,
+            "flip": self.flip,
+            "info": self.info if not isinstance(self.info, np.ndarray) else self.info.tolist(),
+            "map": self.map.tolist() if isinstance(self.map, np.ndarray) else self.map
+        }
+    
     def reversePathCard(self):
         def flip_map(map_array):
             """
@@ -368,4 +380,3 @@ def getCardType(cardTtype, hint=""):
             return {"type":"viewMap","info":"viewMap"}
         case 27: # 3
             return {"type":"rockFail","info":"rockFail"}
-        
