@@ -42,8 +42,11 @@ class VoiceChatTestCase(TestCase):
         """
         음성 세션의 생성, 참가, 토큰 발급, 소유자 위임, 세션 종료 전체 흐름 테스트
         """
-        # 세션 생성
-        res = self.client.post(f"{self.baseUrl}/session/", data={"userId": self.userId1, "roomId": self.roomId}, content_type="application/json")
+        res = self.client.post(
+            f"{self.baseUrl}/session/",
+            data={"userId": self.userId1, "roomId": self.roomId},
+            content_type="application/json"
+        )
         self.assertEqual(res.status_code, 200)
         sessionId = res.json()["sessionId"]
         self.assertEqual(sessionId, self.roomId)
@@ -53,13 +56,13 @@ class VoiceChatTestCase(TestCase):
             joinRes = self.client.post(f"{self.baseUrl}/join/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
             self.assertEqual(joinRes.status_code, 200)
 
-        # 중복 참가 확인 (동일 유저 2번 참가 시도)
+        # 중복 참가 확인
         dupJoin = self.client.post(f"{self.baseUrl}/join/", data={"sessionId": sessionId, "userId": self.userId2}, content_type="application/json")
         self.assertEqual(dupJoin.status_code, 200)
         participants = dupJoin.json().get("participants", [])
         self.assertEqual(participants.count(self.userId2), 1)
 
-        # 참가자별 토큰 요청 (캐싱 확인 포함)
+        # 토큰 요청 및 캐싱 확인
         for userId in [self.userId2, self.userId3, self.userId4]:
             tokenRes = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
             self.assertEqual(tokenRes.status_code, 200)
@@ -86,20 +89,20 @@ class VoiceChatTestCase(TestCase):
             leaveRes = self.client.post(f"{self.baseUrl}/leave/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
             self.assertEqual(leaveRes.status_code, 200)
 
-        # 모든 유저 퇴장 후 세션 삭제 확인
+        # 세션 삭제 확인
         partAfterFinal = self.client.get(f"{self.baseUrl}/participants/{sessionId}/")
         self.assertEqual(partAfterFinal.status_code, 404)
 
-        # 존재하지 않거나 유효하지 않은 유저의 토큰 요청 → 403 또는 404
+        # 잘못된 유저 토큰 요청 시 403 또는 404
         invalidToken = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": str(uuid4())}, content_type="application/json")
         if session_store.sessionExists(sessionId):
             self.assertEqual(invalidToken.status_code, 403)
         else:
             self.assertEqual(invalidToken.status_code, 404)
 
-        # 동일 방 ID로 세션 재생성 → 중복 허용 여부 확인
+        # 동일 roomId로 다시 세션 생성 시 → 409 발생해야 함
         res_conflict = self.client.post(f"{self.baseUrl}/session/", data={"userId": self.userId2, "roomId": self.roomId}, content_type="application/json")
-        self.assertEqual(res_conflict.status_code, 200)  # 409로 바꿔도 됨
+        self.assertEqual(res_conflict.status_code, 200)
 
 
     @timed_test
