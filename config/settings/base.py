@@ -1,3 +1,5 @@
+#config/settings/base.py
+
 from pathlib import Path
 import os
 from dotenv import load_dotenv
