@@ -9,6 +9,7 @@ headers = {"Content-Type": "application/json"}
 def get_auth():
     return HTTPBasicAuth("OPENVIDUAPP", settings.OPENVIDU_SECRET)
 
+
 def deleteOpenviduSession(session_id: str):
     """
     OpenVidu 세션을 강제로 삭제 (강제 종료 포함)
@@ -53,3 +54,4 @@ def generateOpenviduToken(sessionId: str, userId: str) -> str:
     )
     response.raise_for_status()
     return response.json()["token"]
+

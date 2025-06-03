@@ -1,5 +1,3 @@
-# apps/saboteur/voice_chat/tests/test_voicechat.py
-
 import os
 import time
 from uuid import uuid4
@@ -266,7 +264,7 @@ class VoiceChatIntegrationTestCase(TestCase):
         token3 = tokenRes3.json().get("token")
         self.assertNotEqual(token1, token3)
 
-        logger.info(f"token1: {token1}\ntoken2: {token2}\ntoken3: {token3}")
+        print(f"token1: {token1}\ntoken2: {token2}\ntoken3: {token3}")
 
     @timed_test
     def test_multi_user_voice_flow(self):
