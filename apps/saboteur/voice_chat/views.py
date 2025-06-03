@@ -36,7 +36,7 @@ def createVoiceSession(request):
     """
     방 생성 API
     - roomId를 기반으로 OpenVidu 세션 생성
-    - 중복 시 409 반환
+    - 중복 시 그대로 통과
     - sessionStore에 세션 생성
     """
     roomId = request.data.get("roomId")
@@ -45,27 +45,21 @@ def createVoiceSession(request):
     if not userId or not roomId:
         return Response({"error": "Missing userId or roomId"}, status=400)
 
-    sessionId = roomId  # roomId 자체를 세션 ID로 사용
+    sessionId = roomId
 
     try:
         # OpenVidu 서버에 세션 생성 요청
         createOpenviduSession(sessionId)
-    except HTTPError as e:
-        # 세션이 이미 존재할 경우
-        if e.response.status_code == 409:
-            return Response({"error": "Session already exists"}, status=409)
+    except Exception as e:
+        # 409 이외의 에러는 출력
         traceback.print_exc()
         return Response({"error": f"Failed to create session: {str(e)}"}, status=500)
-    except Exception as e:
-        # 기타 예외 처리
-        traceback.print_exc()
-        return Response({"error": f"Unexpected error: {str(e)}"}, status=500)
 
-    # 내부 세션 생성 및 매핑 저장
-    createSession(sessionId, ownerId=userId)
-    ROOM_SESSION_MAP[roomId] = sessionId
+    # 내부 세션 생성 (중복이라도 내부에는 없을 수 있으니 생성 시도)
+    if not sessionExists(sessionId):
+        createSession(sessionId, ownerId=userId)
+        ROOM_SESSION_MAP[roomId] = sessionId
 
-    # 로그 기록
     VOICE_SESSION_LOGS.append({
         "event": "create_session",
         "timestamp": time.time(),
@@ -74,7 +68,6 @@ def createVoiceSession(request):
     })
 
     return Response({"sessionId": sessionId})
-
 
 @api_view(["POST"])
 def joinVoiceSession(request):
