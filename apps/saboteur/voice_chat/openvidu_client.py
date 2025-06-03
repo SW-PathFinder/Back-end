@@ -4,8 +4,10 @@ import requests
 from django.conf import settings
 from requests.auth import HTTPBasicAuth
 
-auth = HTTPBasicAuth("OPENVIDUAPP", settings.OPENVIDU_SECRET)
 headers = {"Content-Type": "application/json"}
+
+def get_auth():
+    return HTTPBasicAuth("OPENVIDUAPP", settings.OPENVIDU_SECRET)
 
 
 def deleteOpenviduSession(session_id: str):
@@ -15,7 +17,7 @@ def deleteOpenviduSession(session_id: str):
     url = f"{settings.OPENVIDU_URL}/api/sessions/{session_id}"
     response = requests.delete(
         url,
-        auth=auth,
+        auth=get_auth(),
         headers=headers,
         verify=settings.OPENVIDU_VERIFY_SSL
     )
@@ -23,59 +25,33 @@ def deleteOpenviduSession(session_id: str):
         response.raise_for_status()
 
 
-def createOpenviduSession(session_id: str) -> str:
-    """
-    항상 새로운 세션을 생성
-    - 기존 세션이 존재하면 삭제 후 재생성
-    """
+def createOpenviduSession(sessionId: str) -> str:
     url = f"{settings.OPENVIDU_URL}/api/sessions"
-    payload = {"customSessionId": session_id}
-
-    try:
-        response = requests.post(
-            url,
-            json=payload,
-            auth=auth,
-            headers=headers,
-            verify=settings.OPENVIDU_VERIFY_SSL
-        )
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code == 409:
-            # 기존 세션이 존재하므로 삭제 후 재시도
-            deleteOpenviduSession(session_id)
-
-            # 재시도
-            retry_response = requests.post(
-                url,
-                json=payload,
-                auth=auth,
-                headers=headers,
-                verify=settings.OPENVIDU_VERIFY_SSL
-            )
-            retry_response.raise_for_status()
-            return session_id
-        else:
-            raise
-    return session_id
-
-
-def generateOpenviduToken(session_id: str, user_id: str) -> str:
-    """
-    OpenVidu Token 생성
-    """
-    url = f"{settings.OPENVIDU_URL}/api/tokens"
-    payload = {
-        "session": session_id,
-        "data": f"userId={user_id}",
-    }
-
+    payload = {"customSessionId": sessionId}
     response = requests.post(
         url,
         json=payload,
-        auth=auth,
+        auth=get_auth(),
+        headers=headers,
+        verify=settings.OPENVIDU_VERIFY_SSL
+    )
+    # 409 Conflict → 세션이 이미 존재하는 경우, 예외를 발생시키지 않고 그대로 sessionId 반환
+    if response.status_code == 409:
+        return sessionId
+    response.raise_for_status()
+    return response.json()["id"]
+
+
+def generateOpenviduToken(sessionId: str, userId: str) -> str:
+    url = f"{settings.OPENVIDU_URL}/api/tokens"
+    payload = {"session": sessionId, "data": userId}
+    response = requests.post(
+        url,
+        json=payload,
+        auth=get_auth(),
         headers=headers,
         verify=settings.OPENVIDU_VERIFY_SSL
     )
     response.raise_for_status()
-    return response.json().get("token")
+    return response.json()["token"]
+
