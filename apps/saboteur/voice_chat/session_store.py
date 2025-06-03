@@ -105,3 +105,9 @@ def getSessionOwner(sessionId):
     세션의 현재 소유자를 반환
     """
     return sessionStore.get(sessionId, {}).get("owner")
+
+def getParticipantCount(sessionId: str) -> int:
+    """
+    세션의 참가자 수 반환
+    """
+    return len(getParticipants(sessionId))
