@@ -1,5 +1,3 @@
-# apps/saboteur/voice_chat/tests/test_voicechat.py
-
 import os
 import time
 from uuid import uuid4
@@ -9,8 +7,11 @@ from unittest.mock import patch
 from dotenv import load_dotenv
 
 from apps.saboteur.voice_chat import session_store
+from apps.saboteur.voice_chat.openvidu_client import generateOpenviduToken, createOpenviduSession
+from apps.saboteur.voice_chat.session_store import addParticipant, createSession
 
 load_dotenv()
+
 
 # 테스트 시작-종료 시간 측정을 위한 데코레이터
 def timed_test(func):
@@ -23,7 +24,36 @@ def timed_test(func):
         finally:
             elapsed = time.time() - start
             print(f"END: {func.__name__} (elapsed: {elapsed:.3f}s)")
+
     return wrapper
+
+
+class GenerateTokenUnitTest(TestCase):
+    def setUp(self):
+        self.session_id = f"session-{uuid4()}"
+        self.user_id = f"user-{uuid4()}"
+
+        # 세션 등록 및 사용자 추가 (메모리 기반 세션 스토어 사용)
+        createSession(self.session_id, ownerId=self.user_id)
+        addParticipant(self.session_id, self.user_id)
+
+    @timed_test
+    def test_generate_token_directly_from_openvidu(self):
+        """
+        실제 OpenVidu 서버에 토큰 요청하여 응답 확인
+        """
+        createOpenviduSession(self.session_id)
+
+        token = generateOpenviduToken(self.session_id, self.user_id)
+
+        self.assertIsInstance(token, str)
+        self.assertGreater(len(token), 0)
+
+        # 토큰이 URL인 경우 (예: wss://...) 또는 tok_ 접두사를 가지는지 확인
+        self.assertTrue(
+            token.startswith("wss://") or "token=" in token or token.startswith("tok_"),
+            f"Unexpected token format: {token}"
+        )
 
 
 class VoiceChatTestCase(TestCase):
@@ -42,33 +72,35 @@ class VoiceChatTestCase(TestCase):
         """
         음성 세션의 생성, 참가, 토큰 발급, 소유자 위임, 세션 종료 전체 흐름 테스트
         """
-        res = self.client.post(
-            f"{self.baseUrl}/session/",
-            data={"userId": self.userId1, "roomId": self.roomId},
-            content_type="application/json"
-        )
+        # 세션 생성
+        res = self.client.post(f"{self.baseUrl}/session/", data={"userId": self.userId1, "roomId": self.roomId},
+                               content_type="application/json")
         self.assertEqual(res.status_code, 200)
         sessionId = res.json()["sessionId"]
         self.assertEqual(sessionId, self.roomId)
 
         # 나머지 유저 참가
         for userId in [self.userId2, self.userId3, self.userId4]:
-            joinRes = self.client.post(f"{self.baseUrl}/join/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
+            joinRes = self.client.post(f"{self.baseUrl}/join/", data={"sessionId": sessionId, "userId": userId},
+                                       content_type="application/json")
             self.assertEqual(joinRes.status_code, 200)
 
-        # 중복 참가 확인
-        dupJoin = self.client.post(f"{self.baseUrl}/join/", data={"sessionId": sessionId, "userId": self.userId2}, content_type="application/json")
+        # 중복 참가 확인 (동일 유저 2번 참가 시도)
+        dupJoin = self.client.post(f"{self.baseUrl}/join/", data={"sessionId": sessionId, "userId": self.userId2},
+                                   content_type="application/json")
         self.assertEqual(dupJoin.status_code, 200)
         participants = dupJoin.json().get("participants", [])
         self.assertEqual(participants.count(self.userId2), 1)
 
-        # 토큰 요청 및 캐싱 확인
+        # 참가자별 토큰 요청 (캐싱 확인 포함)
         for userId in [self.userId2, self.userId3, self.userId4]:
-            tokenRes = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
+            tokenRes = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": userId},
+                                        content_type="application/json")
             self.assertEqual(tokenRes.status_code, 200)
             token = tokenRes.json()["token"]
 
-            tokenRepeat = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
+            tokenRepeat = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": userId},
+                                           content_type="application/json")
             self.assertEqual(tokenRepeat.status_code, 200)
             self.assertEqual(token, tokenRepeat.json()["token"])
 
@@ -79,31 +111,35 @@ class VoiceChatTestCase(TestCase):
         self.assertEqual(set(participants), {self.userId1, self.userId2, self.userId3, self.userId4})
 
         # 소유자 퇴장 후 위임 확인
-        leaveOwner = self.client.post(f"{self.baseUrl}/leave/", data={"sessionId": sessionId, "userId": self.userId1}, content_type="application/json")
+        leaveOwner = self.client.post(f"{self.baseUrl}/leave/", data={"sessionId": sessionId, "userId": self.userId1},
+                                      content_type="application/json")
         self.assertEqual(leaveOwner.status_code, 200)
         new_owner = session_store.getSessionOwner(sessionId)
         self.assertIn(new_owner, [self.userId2, self.userId3, self.userId4])
 
         # 나머지 유저들도 퇴장
         for userId in [self.userId2, self.userId3, self.userId4]:
-            leaveRes = self.client.post(f"{self.baseUrl}/leave/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
+            leaveRes = self.client.post(f"{self.baseUrl}/leave/", data={"sessionId": sessionId, "userId": userId},
+                                        content_type="application/json")
             self.assertEqual(leaveRes.status_code, 200)
 
-        # 세션 삭제 확인
+        # 모든 유저 퇴장 후 세션 삭제 확인
         partAfterFinal = self.client.get(f"{self.baseUrl}/participants/{sessionId}/")
         self.assertEqual(partAfterFinal.status_code, 404)
 
-        # 잘못된 유저 토큰 요청 시 403 또는 404
-        invalidToken = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": str(uuid4())}, content_type="application/json")
+        # 존재하지 않거나 유효하지 않은 유저의 토큰 요청 → 403 또는 404
+        invalidToken = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": str(uuid4())},
+                                        content_type="application/json")
         if session_store.sessionExists(sessionId):
             self.assertEqual(invalidToken.status_code, 403)
         else:
             self.assertEqual(invalidToken.status_code, 404)
 
-        # 동일 roomId로 다시 세션 생성 시 → 409 발생해야 함
-        res_conflict = self.client.post(f"{self.baseUrl}/session/", data={"userId": self.userId2, "roomId": self.roomId}, content_type="application/json")
-        self.assertEqual(res_conflict.status_code, 200)
-
+        # 동일 방 ID로 세션 재생성 → 중복 허용 여부 확인
+        res_conflict = self.client.post(f"{self.baseUrl}/session/",
+                                        data={"userId": self.userId2, "roomId": self.roomId},
+                                        content_type="application/json")
+        self.assertEqual(res_conflict.status_code, 200)  # 409로 바꿔도 됨
 
     @timed_test
     def test_token_after_cleanup(self):
@@ -112,14 +148,15 @@ class VoiceChatTestCase(TestCase):
         """
         userId = str(uuid4())
         roomId = f"room-{uuid4()}"
-        sessionRes = self.client.post(f"{self.baseUrl}/session/", data={"userId": userId, "roomId": roomId}, content_type="application/json")
+        sessionRes = self.client.post(f"{self.baseUrl}/session/", data={"userId": userId, "roomId": roomId},
+                                      content_type="application/json")
         sessionId = sessionRes.json()["sessionId"]
 
         self.client.post(f"{self.baseUrl}/cleanup/", data={"force": True}, content_type="application/json")
 
-        tokenRes = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
+        tokenRes = self.client.post(f"{self.baseUrl}/token/", data={"sessionId": sessionId, "userId": userId},
+                                    content_type="application/json")
         self.assertEqual(tokenRes.status_code, 404)
-
 
     @timed_test
     def test_join_after_cleanup(self):
@@ -128,14 +165,15 @@ class VoiceChatTestCase(TestCase):
         """
         userId = str(uuid4())
         roomId = f"room-{uuid4()}"
-        sessionRes = self.client.post(f"{self.baseUrl}/session/", data={"userId": userId, "roomId": roomId}, content_type="application/json")
+        sessionRes = self.client.post(f"{self.baseUrl}/session/", data={"userId": userId, "roomId": roomId},
+                                      content_type="application/json")
         sessionId = sessionRes.json()["sessionId"]
 
         self.client.post(f"{self.baseUrl}/cleanup/", data={"force": True}, content_type="application/json")
 
-        joinRes = self.client.post(f"{self.baseUrl}/join/", data={"sessionId": sessionId, "userId": userId}, content_type="application/json")
+        joinRes = self.client.post(f"{self.baseUrl}/join/", data={"sessionId": sessionId, "userId": userId},
+                                   content_type="application/json")
         self.assertEqual(joinRes.status_code, 404)
-
 
     @timed_test
     @patch("apps.saboteur.voice_chat.views.generateOpenviduToken", side_effect=Exception("Mocked OpenVidu failure"))
@@ -146,15 +184,17 @@ class VoiceChatTestCase(TestCase):
         user_id = str(uuid4())
         room_id = f"room-{uuid4()}"
 
-        session_res = self.client.post("/voice/session/", data={"userId": user_id, "roomId": room_id}, content_type="application/json")
+        session_res = self.client.post("/voice/session/", data={"userId": user_id, "roomId": room_id},
+                                       content_type="application/json")
         session_id = session_res.json()["sessionId"]
 
-        self.client.post("/voice/join/", data={"sessionId": session_id, "userId": user_id}, content_type="application/json")
+        self.client.post("/voice/join/", data={"sessionId": session_id, "userId": user_id},
+                         content_type="application/json")
 
-        fail_res = self.client.post("/voice/token/", data={"sessionId": session_id, "userId": user_id}, content_type="application/json")
+        fail_res = self.client.post("/voice/token/", data={"sessionId": session_id, "userId": user_id},
+                                    content_type="application/json")
         self.assertEqual(fail_res.status_code, 500)
         self.assertIn("Token creation failed", fail_res.json().get("error", ""))
-
 
     @timed_test
     def test_session_expiration_by_timeout(self):
@@ -166,7 +206,8 @@ class VoiceChatTestCase(TestCase):
         userId = str(uuid4())
         roomId = f"room-{uuid4()}"
 
-        sessionRes = self.client.post(f"{self.baseUrl}/session/", data={"userId": userId, "roomId": roomId}, content_type="application/json")
+        sessionRes = self.client.post(f"{self.baseUrl}/session/", data={"userId": userId, "roomId": roomId},
+                                      content_type="application/json")
         sessionId = sessionRes.json()["sessionId"]
 
         time.sleep(1.5)  # timeout 유도
@@ -179,6 +220,53 @@ class VoiceChatTestCase(TestCase):
 class VoiceChatIntegrationTestCase(TestCase):
 
     @timed_test
+    def test_token_generation_and_cache_with_openvidu(self):
+        """
+        실제 OpenVidu와 통신하여 토큰이 생성되고,
+        동일 유저가 두 번 요청 시 캐시에서 반환되는지 확인
+        """
+        baseUrl = "/voice"
+        userId = str(uuid4())
+        roomId = f"room-{uuid4()}"
+
+        # 세션 생성
+        sessionRes = self.client.post(f"{baseUrl}/session/", data={"userId": userId, "roomId": roomId},
+                                      content_type="application/json")
+        self.assertEqual(sessionRes.status_code, 200)
+        sessionId = sessionRes.json()["sessionId"]
+
+        # 참가
+        joinRes = self.client.post(f"{baseUrl}/join/", data={"sessionId": sessionId, "userId": userId},
+                                   content_type="application/json")
+        self.assertEqual(joinRes.status_code, 200)
+
+        # 첫 번째 토큰 요청 → 발급
+        tokenRes1 = self.client.post(f"{baseUrl}/token/", data={"sessionId": sessionId, "userId": userId},
+                                     content_type="application/json")
+        self.assertEqual(tokenRes1.status_code, 200)
+        token1 = tokenRes1.json().get("token")
+        self.assertIsNotNone(token1)
+
+        # 두 번째 토큰 요청 → 캐시에서 반환
+        tokenRes2 = self.client.post(f"{baseUrl}/token/", data={"sessionId": sessionId, "userId": userId},
+                                     content_type="application/json")
+        self.assertEqual(tokenRes2.status_code, 200)
+        token2 = tokenRes2.json().get("token")
+        self.assertEqual(token1, token2)
+
+        # 캐시 제거 후 다시 요청 → 새로운 토큰 발급 예상
+        from apps.saboteur.voice_chat.views import TOKEN_CACHE
+        TOKEN_CACHE[sessionId].pop(userId)
+
+        tokenRes3 = self.client.post(f"{baseUrl}/token/", data={"sessionId": sessionId, "userId": userId},
+                                     content_type="application/json")
+        self.assertEqual(tokenRes3.status_code, 200)
+        token3 = tokenRes3.json().get("token")
+        self.assertNotEqual(token1, token3)
+
+        print(f"token1: {token1}\ntoken2: {token2}\ntoken3: {token3}")
+
+    @timed_test
     def test_multi_user_voice_flow(self):
         """
         4명 이상 유저의 세션 참가 → 토큰 요청 → 순차 퇴장 → 세션 삭제까지 전체 흐름 확인
@@ -186,19 +274,23 @@ class VoiceChatIntegrationTestCase(TestCase):
         users = [str(uuid4()) for _ in range(4)]
         roomId = f"room-{uuid4()}"
 
-        sessionRes = self.client.post("/voice/session/", data={"userId": users[0], "roomId": roomId}, content_type="application/json")
+        sessionRes = self.client.post("/voice/session/", data={"userId": users[0], "roomId": roomId},
+                                      content_type="application/json")
         sessionId = sessionRes.json()["sessionId"]
         self.assertEqual(sessionId, roomId)
 
         for user in users[1:]:
-            self.client.post("/voice/join/", data={"sessionId": sessionId, "userId": user}, content_type="application/json")
+            self.client.post("/voice/join/", data={"sessionId": sessionId, "userId": user},
+                             content_type="application/json")
 
         for user in users:
-            tokenRes = self.client.post("/voice/token/", data={"sessionId": sessionId, "userId": user}, content_type="application/json")
+            tokenRes = self.client.post("/voice/token/", data={"sessionId": sessionId, "userId": user},
+                                        content_type="application/json")
             self.assertIn("token", tokenRes.json())
 
         for user in reversed(users):
-            self.client.post("/voice/leave/", data={"sessionId": sessionId, "userId": user}, content_type="application/json")
+            self.client.post("/voice/leave/", data={"sessionId": sessionId, "userId": user},
+                             content_type="application/json")
 
         finalCheck = self.client.get(f"/voice/participants/{sessionId}/")
         self.assertEqual(finalCheck.status_code, 404)
