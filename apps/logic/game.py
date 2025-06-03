@@ -46,6 +46,10 @@ class Game:
         print("Board reset")
         self.board = Board(self)
         self.cards = []
+        for player in self.players.values():
+            player.hand = []
+            player.role = "worker"
+            player.limit = {"mineCart":False,"pickaxe":False,"lantern":False}
 
         self._shuffulePlayerRoles()
         self._shuffuleCards()
@@ -81,15 +85,24 @@ class Game:
         if action["type"] == "hand":
             data = {"hand":['\n'.join(''.join(r) for r in self.players[player].hand[0].map)]}
             data = {"hand":[{"num":card.num, "flip":card.flip} for card in self.players[player].hand]}
-            print(data)
+            # print(data)
+            
+
             return {"player":self.currentPlayer,"target":player,"type":"hand","data":data}
 
         if player == self.currentPlayer:
             # 행동 수행
             print("action : ",action)
+
+            ############ 손패 검증
             handNum = action["data"]["handNum"]
+            if len(self.players[player].hand)<handNum+1:
+                self.tasks.append({"player":self.currentPlayer,"target":player,"type":"error","data":"손패 번호가 잘못되었습니다."})
+                response = self.tasks.copy()
+                self.tasks.clear()
+                return response
             card = self.players[player].hand[handNum]
-            
+            ############## 데이터 처리
             x = action["data"].get("x",None)
             y = action["data"].get("y",None)
             target = action["data"].get("target",None)
@@ -106,7 +119,7 @@ class Game:
                 case "path": # action = {"type":"path","data":{"x":x,"y":y,"handNum":num0-5}}
                     # 경로 추가
                     result = self.board.addCard(card,x, y)
-                    print("Result : ",result)
+                    # print("Result : ",result)
                     if result == True:
                         # 경로 추가 성공
                         self.tasks.append({"player":self.currentPlayer,"target":"all","type":"path","data":{"x":x,"y":y,"card":card.num}})
@@ -149,7 +162,7 @@ class Game:
                     if result[0] == True:
                         # 맵 보기 성공
                         self.tasks.append({"player":self.currentPlayer,"target":"all","type":"viewMap","data":{"player":self.currentPlayer,"target":(x,y)}})
-                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"viewMap","data":{"cardType":result[1]}})
+                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"revealDestination","data":{"cardType":result[1]}})
                         self._useCard(handNum)
                         self._nextTrun()
                     else:
@@ -158,7 +171,7 @@ class Game:
                     result = self.players[player].discard(handNum)
                     if result:
                         # 카드 버리기 성공
-                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"discard","data":{"handNum":handNum}})
+                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":handNum}})
                         result = self._drawCard()
                         if result[0]:
                             self.tasks.append({"player":self.currentPlayer,"target":player,"type":"drawCard","data":{"card":result[1].num}})
@@ -178,12 +191,6 @@ class Game:
             # 현재 플레이어가 아님
             self.tasks.append({"player":self.currentPlayer,"target":player,"type":"error","data":"not your turn"})
         
-        # todo : 게임 종료 조건 체크
-        # 1. 보물찾기 성공 체크
-        # 2. 이번 라운드 승자 체크
-        # 3. 게임 종료 체크
-        # 4. 다음 라운드 시작 체크
-        # 5. 다음 턴 시작 체크
         checkEnd = self.board.checkEnd()
         checkNoneCard = len(self.cards) == 0 and [player.hand for player in self.players.values()] == [[]]*len(self.players)
         # print(checkEnd)
@@ -206,8 +213,9 @@ class Game:
                 for player in self.players:
                     if self.players[player].role == "worker" and winner == "worker":
                         gold = self.goldCard.pop(0) if len(self.goldCard) > 0 else 0
-                        self.players[player].gold += gold
+                        self.players[player].addGold(gold)
                         print(f"{player}에게 {gold} 금이 배분되었습니다.")
+
                         self.tasks.append({"player":self.currentPlayer,"target":player,"type":"getGold","data":{"gold":gold}})
                     elif self.players[player].role == "saboteur" and winner == "saboteur":
                         lenPlayer = len(self.players)
@@ -222,7 +230,7 @@ class Game:
                                 if currnetGold == goldMaximum:
                                     break
                         print(f"{player}에게 {currnetGold} 금이 배분되었습니다.")
-                        self.players[player].gold += currnetGold
+                        self.players[player].addGold(currnetGold)
                         self.tasks.append({"player":self.currentPlayer,"target":player,"type":"getGold","data":{"gold":currnetGold}})
                         # 인원에 따라 고
                 if self.currentRound == 3:
@@ -230,7 +238,7 @@ class Game:
                     golds = {player: self.players[player].gold for player in self.players}
                     sorted_golds = sorted(golds.items(), key=lambda x: x[1], reverse=True)
                     print("금 순위:", sorted_golds)
-                    self.tasks.append({"player":self.currentPlayer,"target":"all","type":"game_end","data":{"rank":sorted_golds}})
+                    self.tasks.append({"player":self.currentPlayer,"target":"all","type":"game_end","data":{"rank":golds}})
                 else:
                     print("라운드가 종료되었습니다.")
 
@@ -249,7 +257,7 @@ class Game:
             self.players[self.currentPlayer].drawCard(card)
             return True, card
         else:
-            return True, "모든 패가 소진되었습니다."
+            return False, "모든 패가 소진되었습니다."
     def _useCard(self, handNum:int):
         if self.players[self.currentPlayer].discard(handNum):
             result = self._drawCard()

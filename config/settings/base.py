@@ -1,11 +1,18 @@
 from pathlib import Path
 from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
+DEBUG = config('DEBUG', default=True, cast=bool)
+# ALLOWED_HOSTS = [h for h in config('ALLOWED_HOSTS', default='').split(',') if h]
+ALLOWED_HOSTS = ['*']
+# if DEBUG and not ALLOWED_HOSTS:
+#     ALLOWED_HOSTS = ['*']
+# elif not DEBUG and not ALLOWED_HOSTS:
+    # raise ImproperlyConfigured("You must set settings.ALLOWED_HOSTS if DEBUG is False.")
+    # ALLOWED_HOSTS = ['*']
 TIME_ZONE = config('TIME_ZONE', default='Asia/Seoul')
 
 INSTALLED_APPS = [
@@ -15,9 +22,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.game',
+    'apps.saboteur',
 ]
-
+INSTALLED_APPS += ["channels"]
+ASGI_APPLICATION = "config.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

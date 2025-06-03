@@ -7,10 +7,10 @@ Python Socket.IO 게임 서버 (ASGI)
 실행 방법
 ---------
 개발 중 **자동 리로드**가 필요하면:
-    uvicorn game_socket_server:app --reload --port 8000
+    uvicorn SOCKET_server:app --reload --port 3000
 
 VS Code 디버거·단일 프로세스로 빠르게 띄우고 싶다면(리로드 없음):
-    python game_socket_server.py
+    python SOCKET_server.py
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ sio = socketio.AsyncServer(
 # ─────────────────────────  정적 파일 설정 ─────────────────────
 # "/" 요청이 들어오면 client.html을 서빙한다고 가정
 static_files: Dict[str, str] = {
-    '/': 'client.html',
+    '/': 'lobby.html',
     '/client.html': 'client.html',
     '/lobby.html': 'lobby.html',
 }
@@ -323,7 +323,8 @@ async def start_game(sid, data):
         
     game = get_game(room)
     game.startGame()
-
+    
+    # 게임 시작 이벤트 브로드캐스트
     await broadcast(room, "game_started", {
         "target": "all",
         "type": "game_started",
@@ -362,6 +363,7 @@ async def game_action(sid, data):
             responses = result
         else:
             responses = []
+
     except Exception as exc:
         await send_private(player, "error", {"message": str(exc)})
         return
@@ -381,7 +383,10 @@ async def chat(sid, data):
     message = data.get("message", "")
     username = sid_to_user.get(sid, "Anonymous")
     print(f"Chat message from {username}: {message}")
-
+    game = get_game(room)
+    for player in game.players:
+        await process_chat_command(sid,room,player,"/hand")
+        await process_chat_command(sid,room,player,"/board")
     # 1) 명령어 ("/"로 시작) → process_chat_command
     if message.startswith('/'):
         await process_chat_command(sid, room, username, message)
@@ -401,7 +406,7 @@ async def process_json_command(sid, room, username, message):
     """JSON 명령어 처리"""
     try:
         # 1) JSON 파싱
-        command_data = json.loads(message)
+        command_data = json.loads(message.replace("'", "\""))
 
         # 2) 게임 액션 실행
         game = get_game(room)
@@ -418,12 +423,11 @@ async def process_json_command(sid, room, username, message):
             responses = []
 
         print(f"Command result: {responses}")
+        
+        for player in game.players:
+            await process_chat_command(sid,room,player,"/hand")
+            await process_chat_command(sid,room,player,"/board")
 
-        # 4) 실행 알림 (채팅 채널에 시스템 메시지로 브로드캐스트)
-        # await broadcast(room, "chat", {
-        #     "username": "시스템",
-        #     "message": f"{username}이(가) 명령어를 실행했습니다: {message}",
-        # })
 
         # 5) 게임 상태 업데이트
         for res in responses:
@@ -443,61 +447,157 @@ async def process_json_command(sid, room, username, message):
 async def process_chat_command(sid, room, username, message):
     """채팅 명령어 처리"""
     try:
+        
         # 1) "/" 제거 후 공백으로 분할
         parts = message[1:].split()
+        game = get_game(room)
+        
         if not parts:
             return
 
         command = parts[0].lower()
-        print(f"Processing command: {command} from {username}")
+        print(f"Processing chat command: {command} from {username}")
 
-        # 2) 게임 액션 명령어들
-        if command == "path" and len(parts) >= 4:
-            # /path x y card
-            x, y, card = int(parts[1]), int(parts[2]), int(parts[3])
-            action = {"type": "path", "data": {"x": x, "y": y, "card": card}}
-        elif command == "draw":
-            # /draw
-            action = {"type": "drawCard", "data": {}}
-        elif command == "turn":
-            # /turn
-            action = {"type": "turn_change", "data": {}}
-        elif command == "rock" and len(parts) >= 3:
-            # /rock x y
-            x, y = int(parts[1]), int(parts[2])
-            action = {"type": "rock_found", "data": {"x": x, "y": y}}
-        elif command == "hand":
-            # /hand
-            action = {"type": "hand", "data": {}}
-        elif command == "card":
-            
-            cardMap = Card(int(parts[1])).map
-            responses = {
-                "type": "card_info",
-                "data": "\n".join([''.join(l) for l in cardMap])
-            }
-            await send_private(username, "private_game_update", responses)
-            return
-        elif command == "roominfo":
-            print("roominfo")
-            print(game_rooms)
-            roomInfo = room
-            print("----------------",roomInfo)
-            r = game_rooms.get(roomInfo)
-            print("roomInfo", r)
-            print("roomInfo", r.__dict__)
-            if roomInfo:
-                # 방 정보 요청
+        match command:
+            case "board":
+                recivedMessage = game.board.showBoard()
                 responses = {
-                    "type": "room_info",
-                    "data":str(game_rooms.get(room).to_dict())
+                    "type": "board_info",
+                    "data": "\n"+recivedMessage
+                }
+                await send_private(username, "private_game_update", responses)
+                return  
+            case "card":
+                cardMap = Card(int(parts[1])).map
+                for l in cardMap:
+                    responses = {
+                        "type": "card_info",
+                        "data": "\n".join([''.join(l) ])
+                    } 
+                    # print(responses)
+                    await send_private(username, "private_game_update", responses)
+                return
+            case "hand":
+                game = get_game(room)
+                player = game.players.get(username)
+                if not player:
+                    await send_private(username, "error", {"message": "게임에 참여하지 않았습니다."})
+                    return
+                hand_cards = player.hand
+                # if not hand_cards:
+                #     await send_private(username, "error", {"message": "손패가 비어 있습니다."})
+                #     return
+                current_player = game.currentPlayer
+                role = player.role
+                hands = [" ".join(["".join(hand_cards[i].map[j]) for i in range(len(hand_cards))]) for j in range(5)]
+                limits = str(player.limit)[1:-1]
+                print  ([f"내 역할 : {role}   |   현재플레이어 : {current_player}"],[" ".join(f"   {j}   " for j in range(len(hand_cards)))],hands,[limits])
+                hands = [f"내 역할 : {role}   |   현재플레이어 : {current_player}"]+[" ".join(f"   {j}   " for j in range(len(hand_cards)))]+hands+[limits]
+                responses = {
+                    "type": "hand_info",
+                    "data": "\n".join(hands)
                 }
                 await send_private(username, "private_game_update", responses)
                 return
-        else:
-            # 알 수 없는 명령어
-            await send_private(username, "error", {"message": f"알 수 없는 명령어: {command}"})
-            return
+                
+            case "roominfo":
+                print("roominfo")
+                print(game_rooms)
+                roomInfo = room
+                print("----------------",roomInfo)
+                r = game_rooms.get(roomInfo)
+                print("roomInfo", r)
+                print("roomInfo", r.__dict__)
+                if roomInfo:
+                    # 방 정보 요청
+                    responses = {
+                        "type": "room_info",
+                        "data":str(game_rooms.get(room).to_dict())
+                    }
+                    await send_private(username, "private_game_update", responses)
+                    return
+            case "path":
+                try:
+                    x = int(parts[1])
+                    y = int(parts[2])
+                    handNum = int(parts[3])
+                    message = {
+                        "type": "path",
+                        "data": {
+                            "x": x,
+                            "y": y,
+                            "handNum": handNum
+                        }
+                    }
+                    await process_json_command(sid, room, username, str(message))
+                    return
+                except:
+                    await send_private(username, "error", {"message": "잘못된 명령어 형식입니다. 예: /path x y handNum"})
+                    return
+            case "sabotage":
+                try:
+                    target = str(parts[1])
+                    handNum = int(parts[2])
+                    message = {
+                        "type": "sabotage",
+                        "data": {
+                            "target": target,
+                            "handNum": handNum
+                        }
+                    }
+                    await process_json_command(sid, room, username, str(message))
+                    return
+                except:
+                    await send_private(username, "error", {"message": "잘못된 명령어 형식입니다. 예: /sabotage target handNum"})
+                    return
+            case "repair":
+                try:
+                    target = str(parts[1])
+                    handNum = int(parts[2])
+                    message = {
+                        "type": "repair",
+                        "data": {
+                            "target": target,
+                            "handNum": handNum
+                        }
+                    }
+                    await process_json_command(sid, room, username, str(message))
+                    return
+                except:
+                    await send_private(username, "error", {"message": "잘못된 명령어 형식입니다. 예: /repair target handNum"})
+                    return
+            case "discard":
+                try:
+                    handNum = int(parts[1])
+                    message = {
+                        "type": "discard",
+                        "data": {
+                            "handNum": handNum
+                        }
+                    }
+                    await process_json_command(sid, room, username, str(message))
+                    return
+                except:
+                    await send_private(username, "error", {"message": "잘못된 명령어 형식입니다. 예: /discard handNum"})
+                    return
+            case "reverse":
+                try:
+                    handNum = int(parts[1])
+                    message = {
+                        "type": "reversePath",
+                        "data": {
+                            "handNum": handNum
+                        }
+                    }
+                    await process_json_command(sid, room, username, str(message))
+                    return
+                except:
+                    await send_private(username, "error", {"message": "잘못된 명령어 형식입니다. 예: /reverse handNum"})
+                    return
+            case _:
+                # 알 수 없는 명령어
+                await send_private(username, "error", {"message": f"알 수 없는 명령어: {command}"})
+                return
 
         # 3) 게임 액션 실행
         game = get_game(room)
@@ -512,13 +612,14 @@ async def process_chat_command(sid, room, username, message):
             responses = result
         else:
             responses = []
+        print(1)
 
         # 5) 실행 알림 (채팅 채널에 시스템 메시지로 브로드캐스트)
         await broadcast(room, "chat", {
             "username": "시스템",
             "message": f"{username}이(가) 명령어를 실행했습니다: {message}",
         })
-
+        print(2)
         # 6) 게임 상태 업데이트
         for res in responses:
             if isinstance(res, dict) and res.get("target") == "all":
@@ -527,7 +628,7 @@ async def process_chat_command(sid, room, username, message):
                 await send_private(res.get("target"), "private_game_update", res)
             else:
                 print(f"Warning: Invalid response format: {res}")
-
+        print
     except (ValueError, IndexError):
         await send_private(username, "error", {"message": f"명령어 형식이 잘못되었습니다: {message}"})
     except Exception as e:

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sabotage 게임</title>
+  <!-- D2Coding 폰트 추가 -->
+  <link href="https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_three@1.0/D2Coding.woff" rel="stylesheet">
+  <style>
+    body { 
+      font-family: 'Noto Sans KR', sans-serif; 
+      margin: 0; 
+      padding: 20px; 
+      background-color: #f4f6f9; 
+    }
+    .container { 
+      max-width: 1000px; 
+      margin: 0 auto; 
+    }
+    .card { 
+      background: white;
+      border-radius: 10px; 
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    #log { 
+      height: 300px; 
+      border: 1px solid #ddd; 
+      padding: 10px; 
+      overflow-y: scroll; 
+      background: #fff;
+      border-radius: 5px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .section { margin-bottom: 15px; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .header h2 {
+      margin: 0;
+      color: #3e62a8;
+    }
+    input, button { 
+      margin-right: 5px; 
+      padding: 8px 12px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    button {
+      background: #3e62a8;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2d4b82;
+    }
+    button.secondary {
+      background: #6c757d;
+    }
+    button.secondary:hover {
+      background: #5a6268;
+    }
+    #privateHandViewer, #privateMessageViewer {
+      font-family: 'D2Coding', 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre;
+      letter-spacing: 0;
+      tab-size: 4;
+      font-variant-east-asian: full-width;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- 헤더 -->
+    <div class="header">
+      <h2>Sabotage 게임</h2>
+      <div>
+        <span class="room-info" id="roomInfo"></span>
+        <button class="secondary" id="btnBackToLobby">로비로 돌아가기</button>
+      </div>
+    </div>
+    
+    <!-- 사용자 이름 입력 단계 -->
+    <div class="card" id="usernameSection">
+      <h3>사용자 이름을 입력하세요</h3>
+      <div>
+        <input type="text" id="userInput" placeholder="사용자 이름 입력" />
+        <button id="btnSetUsername">확인</button>
+      </div>
+      <div id="usernameError" style="color: red; margin-top: 5px;"></div>
+    </div>
+      <!-- 게임 인터페이스 -->
+    <div class="card" id="gameInterface" style="display: none;">
+      <h3>환영합니다, <span id="welcomeUsername"></span>님!</h3>
+        <!-- 방 설정 및 게임 컨트롤 -->
+      <div class="section">
+        <label>방 이름: <input type="text" id="roomInput" disabled value="" /></label>
+      </div>
+      
+      <!-- 채팅 -->
+      <div class="section">
+        <input type="text" id="chatMessage" placeholder="메시지를 입력하세요" style="width: 70%;" />
+        <button id="btnSendChat">채팅 보내기</button>
+      </div>
+    </div>    <!-- 로그 -->
+    <div class="card">
+      <h3>게임 로그</h3>
+      <div id="log"  style="height: 80px;"></div>
+    </div>
+    
+    <!-- 개인 메시지 뷰어 -->
+    <div class="card">
+      <h3>개인 핸드 정보</h3>
+      <div id="privateHandViewer" style="height: 100px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px;line-height: 0.8;"></div>
+    </div>
+    
+    <div class="card">
+      <h3>개인 메시지</h3>
+      <div id="privateMessageViewer" style="height: 500px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px; font-size: 10.2px; line-height: 0.8;"></div>
+    </div>
+  </div>
+  <!-- socket.io-client CDN -->
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>  
+  <script>
+    let socket;
+    let username = null;
+    let isUsernameSet = false;
+    let roomId = null;
+    
+    const logEl = document.getElementById('log');
+    const userInput = document.getElementById('userInput');
+    const btnSetUsername = document.getElementById('btnSetUsername');
+    const usernameSection = document.getElementById('usernameSection');
+    const gameInterface = document.getElementById('gameInterface');
+    const welcomeUsername = document.getElementById('welcomeUsername');
+    const usernameError = document.getElementById('usernameError');
+    const roomInfo = document.getElementById('roomInfo');
+    const btnBackToLobby = document.getElementById('btnBackToLobby');
+
+    function log(msg) {
+      const p = document.createElement('div');
+      p.textContent = msg;
+      logEl.appendChild(p);
+      logEl.scrollTop = logEl.scrollHeight;
+    }    // URL에서 방 코드 가져오기
+    function getRoomIdFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('room');    }
+    
+    // 페이지 로드 시 초기화
+    document.addEventListener('DOMContentLoaded', () => {
+      // 저장된 사용자 이름 확인
+      const savedUsername = localStorage.getItem('username');
+      console.log("localStorage에서 가져온 사용자 이름:", savedUsername);
+      
+      roomId = getRoomIdFromUrl();
+      console.log("URL에서 가져온 방 ID:", roomId);
+      
+      // URL에 room 파라미터가 있고 저장된 사용자 이름이 있으면 바로 접속
+      if (roomId && savedUsername) {
+        username = savedUsername;
+        isUsernameSet = true;
+        userInput.value = username;
+        userInput.disabled = true;
+        btnSetUsername.disabled = true;
+        welcomeUsername.textContent = username;
+        
+        // 사용자 이름 섹션 숨기고 게임 인터페이스 표시
+        usernameSection.style.display = 'none';
+        gameInterface.style.display = 'block';
+        
+        // 방 정보 표시 업데이트
+        roomInfo.textContent = `방 ID: ${roomId}`;
+        document.getElementById('roomInput').value = roomId;
+        
+        // 서버 연결 및 게임 화면 표시
+        connectToServer(savedUsername);
+          
+        // 자동으로 방에 참가
+        log(`자동으로 방 ${roomId}에 참가 시도 중...`);
+        setTimeout(() => {
+          if (socket && socket.connected) {
+            socket.emit('join_game', { room: roomId, player: username });
+            log(`게임 참가 요청: 방=${roomId}, 사용자=${username}`);
+          }
+        }, 1000); // 서버 연결 후 1초 후에 방 참가 요청
+      }      // URL에 room 파라미터가 있지만 저장된 사용자 이름이 없는 경우 - 자동 생성된 이름 사용
+      else if (roomId && !savedUsername) {
+        const autoUsername = '게스트_' + Math.floor(Math.random() * 10000);
+        username = autoUsername;
+        isUsernameSet = true;
+        userInput.value = username;
+        userInput.disabled = true;
+        btnSetUsername.disabled = true;
+        welcomeUsername.textContent = username;
+        
+        // 자동 생성된 이름을 localStorage에 저장
+        localStorage.setItem('username', username);
+        console.log("자동 생성된 사용자 이름 저장:", username);
+        
+        // 사용자 이름 섹션 숨기고 게임 인터페이스 표시
+        usernameSection.style.display = 'none';
+        gameInterface.style.display = 'block';
+        
+        // 방 정보 표시 업데이트
+        roomInfo.textContent = `방 ID: ${roomId}`;
+        document.getElementById('roomInput').value = roomId;
+        
+        // 서버 연결 및 게임 화면 표시
+        connectToServer(autoUsername);
+        
+        // 자동으로 방에 참가
+        log(`자동으로 방 ${roomId}에 참가 시도 중...`);
+        setTimeout(() => {
+          if (socket && socket.connected) {
+            socket.emit('join_game', { room: roomId, player: username });
+            log(`게임 참가 요청: 방=${roomId}, 사용자=${username}`);
+          } else {
+            log(`서버 연결이 아직 안됐습니다. 잠시 후 다시 시도합니다.`);
+            // 재시도 로직 추가
+            setTimeout(() => {
+              if (socket && socket.connected) {
+                socket.emit('join_game', { room: roomId, player: username });
+                log(`게임 참가 재시도: 방=${roomId}, 사용자=${username}`);
+              } else {
+                log(`서버 연결에 실패했습니다. 페이지를 새로고침 해보세요.`);
+              }
+            }, 2000);
+          }
+        }, 1000); // 서버 연결 후 1초 후에 방 참가 요청
+      }
+      // URL에 room 파라미터는 없지만 저장된 사용자 이름이 있는 경우
+      else if (savedUsername) {
+        username = savedUsername;
+        isUsernameSet = true;
+        userInput.value = username;
+        userInput.disabled = true;
+        btnSetUsername.disabled = true;
+        welcomeUsername.textContent = username;
+        
+        // 사용자 이름 섹션 숨기고 게임 인터페이스 표시
+        usernameSection.style.display = 'none';
+        gameInterface.style.display = 'block';
+        
+        // 서버 연결 및 게임 화면 표시
+        connectToServer(savedUsername);
+        
+        log(`로그인 완료: ${username}님 환영합니다.`);
+      }
+      // 로비로 돌아가기 버튼 처리
+      btnBackToLobby.addEventListener('click', () => {
+        // 방에서 나가기 이벤트 발생
+        if (socket && socket.connected && roomId) {
+          socket.emit('leave_room', { room: roomId, player: username });
+          log(`[퇴장] ${roomId} 방을 나갑니다.`);
+        }
+        // 로비로 이동
+        window.location.href = 'lobby.html';
+      });
+    });    // 사용자 이름 설정
+    btnSetUsername.addEventListener('click', () => {
+      const inputUsername = userInput.value.trim();
+      if (!inputUsername) {
+        usernameError.textContent = '사용자 이름을 입력하세요.';
+        return;
+      }
+      
+      usernameError.textContent = '';
+      
+      // 서버에 먼저 연결
+      connectToServer(inputUsername);
+    });    function connectToServer(inputUsername) {
+      try {
+        // socket = io('http://money.ipdisk.co.kr:3000', {
+        socket = io('http://localhost:3000', {
+
+          reconnectionAttempts: 5,
+          timeout: 10000
+        });
+        
+        // 연결 오류 처리
+        socket.on('connect_error', (error) => {
+          log(`⚠️ 서버 연결 오류: ${error.message}`);
+          usernameError.textContent = '서버에 연결할 수 없습니다. 네트워크를 확인하세요.';
+        });
+        
+        // 연결 시간 초과 처리
+        socket.on('connect_timeout', () => {
+          log(`⚠️ 서버 연결 시간 초과`);
+          usernameError.textContent = '서버 연결 시간이 초과되었습니다.';
+        });
+        
+        socket.on('connect', () => {
+          log(`✔ 서버 연결됨: ID=${socket.id}`);
+          // 사용자 이름 검증 요청
+          if(inputUsername) {
+            socket.emit('set_username', { username: inputUsername });
+          }
+        });
+        
+        socket.on('username_result', (data) => {
+          if (data.success) {
+            username = data.username;
+            isUsernameSet = true;
+            userInput.disabled = true; // 사용자 이름 입력 비활성화
+            btnSetUsername.disabled = true;
+            welcomeUsername.textContent = username;
+            usernameSection.style.display = 'none';
+            gameInterface.style.display = 'block';
+            
+            // 사용자 이름을 localStorage에 저장
+            localStorage.setItem('username', username);
+            
+            log(`사용자 이름 설정 완료: ${username}`);
+            
+            // URL에 방 ID가 있으면 자동으로 방에 참가
+            if (roomId) {
+              log(`URL을 통한 방 ${roomId} 자동 참가 시도...`);
+              setTimeout(() => {
+                socket.emit('join_game', { room: roomId, player: username });
+                log(`게임 참가 요청: 방=${roomId}, 사용자=${username}`);
+              }, 500);
+            }
+          } else {
+            usernameError.textContent = data.message;
+            socket.disconnect();
+          }
+        });
+        
+        // 기본 소켓 이벤트 설정
+        setupSocketEvents();
+      } catch (error) {
+        log(`⚠️ 서버 연결 중 오류 발생: ${error.message}`);
+        usernameError.textContent = '서버 연결 중 오류가 발생했습니다.';
+      }
+    };    function setupSocketEvents() {
+      // 게임 관련 이벤트
+      socket.on('player_joined', (data) => {
+        log(`[참가] ${data.player}님이 방에 참가했습니다.`);
+        roomInfo.textContent = `방: ${data.room} (${data.player_count}명)`;
+      });
+      
+      // 플레이어 퇴장 이벤트
+      socket.on('player_left', (data) => {
+        log(`[퇴장] ${data.player}님이 방에서 나갔습니다.`);
+        roomInfo.textContent = `방: ${data.room} (${data.player_count}명)`;
+      });
+      
+      // 방장 변경 이벤트
+      socket.on('host_changed', (data) => {
+        log(`[알림] ${data.new_host}님이 새로운 방장이 되었습니다.`);
+      });
+      
+      // 카운트다운 이벤트
+      socket.on('countdown_started', (data) => {
+        log(`[공지] 방이 가득 찼습니다! ${data.seconds}초 후에 게임이 자동으로 시작됩니다.`);
+      });
+      
+      socket.on('countdown_tick', (data) => {
+        log(`[카운트다운] 게임 시작까지 ${data.seconds_left}초...`);
+      });
+      
+      socket.on('game_started', (data) => {
+        log(`[게임 시작] 게임이 시작되었습니다. 참가자: ${data.data.players.join(', ')}`);
+      });
+
+      socket.on('game_update', (data) => {
+        log(`[게임 업데이트] ${JSON.stringify(data)}`);
+      });      
+      
+      socket.on('private_game_update', (data) => {
+        // 만약 data.type === 'board_info'라면
+          if (data.type === 'board_info') {
+            const privateViewer = document.getElementById('privateMessageViewer');
+          
+          // data.data가 있는 경우 표시
+          if (data.data) {
+            // <bar> 태그가 포함되어 있는 경우 줄바꿈 처리
+            if (typeof data.data === 'string' && data.data.includes('<bar>')) {
+              const lines = data.data.split('<bar>');
+              privateViewer.textContent = lines.join('\n');
+            } else {
+              // 문자열이 아닌 경우 JSON 형태로 변환하여 표시
+              privateViewer.textContent = typeof data.data === 'string' ? 
+                data.data : JSON.stringify(data.data, null, 2);
+            }
+          }
+          return 
+          }
+          if (data.type ==="hand_info") {
+            const privateHandViewer = document.getElementById('privateHandViewer');
+            // 개인 핸드 정보 표시
+            if (data.data ) {
+              console.log("개인 핸드 정보:", data.data);
+              privateHandViewer.textContent = data.data;
+            } else {
+              privateHandViewer.textContent = '개인 핸드 정보가 없습니다.';
+            }
+            return;
+          }
+        
+        // 로그에 메시지 기록
+        log(`[비공개 업데이트] ${JSON.stringify(data)}`);
+        
+        // 개인 메시지 뷰어에 데이터 표시
+        
+      });
+
+
+      // 채팅 이벤트
+      socket.on('chat', (data) => {
+        log(`[채팅] ${data.username}: ${data.message}`);
+      });
+
+      // 오류 처리
+      socket.on('error', (err) => {
+        const errorMsg = err.message || JSON.stringify(err);
+        log(`[오류] ${errorMsg}`);
+        
+        // 오류 유형에 따른 처리
+        if (errorMsg.includes('방을 찾을 수 없습니다') && roomId) {
+          log(`⚠️ 방 ${roomId}를 찾을 수 없습니다. 방이 이미 종료되었거나 존재하지 않는 방입니다.`);
+        }
+      });
+      
+      // 연결 해제 이벤트
+      socket.on('disconnect', (reason) => {
+        log(`[연결 해제] 서버와 연결이 끊어졌습니다. 이유: ${reason}`);
+      });    }        document.getElementById('btnSendChat').addEventListener('click', () => {
+      const room = roomId;  // URL에서 가져온 방 ID 사용
+      const msg = document.getElementById('chatMessage').value.trim();
+      if (!room) {
+        alert('방 정보를 찾을 수 없습니다.');
+        return;
+      }
+      if (!msg) return;
+      socket.emit('chat', { room, message: msg });
+      document.getElementById('chatMessage').value = '';
+    });
+
+    // Enter 키로 사용자 이름 설정
+    userInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !isUsernameSet) {
+        btnSetUsername.click();
+      }
+    });
+
+    // Enter 키로 채팅 전송
+    document.getElementById('chatMessage').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('btnSendChat').click();
+      }
+    });
+  </script>
+</body>
+</html>

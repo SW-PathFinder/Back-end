@@ -33,13 +33,13 @@ class Board:
             self.addNetwork(x,y,newCard)
             return True
         elif not emptyVerification(self.board,x,y): #검증
-            return False ,"error emptyVerification"
+            return False ,"이미 카드가 존재합니다."
         elif not nearPathVerification(self.board,x,y,newCard.path): #검증
             print("error nearPathVerification")
-            return False,"error nearPathVerification"
+            return False,"주변 카드가 조건을 만족하지 않습니다."
         elif not self.totalPathVerification(x,y,newCard): #검증
             print("error totalPathVerification")
-            return False,"error totalPathVerification"
+            return False,"카드가 연결되지 않습니다."
         else:
             return True
         
@@ -54,7 +54,7 @@ class Board:
             self.addNetwork(x,y,self.board[x,y])
             return True
         else:
-            return False,"error rockFail"
+            return False,"파괴할 수 없는 카드입니다."
     def viewMap(self, x, y):
         if self.gold == (x,y):
             # 보물찾기 성공
@@ -188,6 +188,7 @@ class Board:
     def showBoard(self):
         rows, cols = self.board.shape
         # 배열의 각 행을 순회합니다.
+        resultText = ""
         for r in range(rows):
             # 각 셀의 np.array를 행 단위로 문자열로 변환합니다.
 
@@ -197,8 +198,10 @@ class Board:
             # 셀의 각 줄을 이어 붙여 한 행의 결과를 만듭니다.
             for line_idx in range(num_lines):
                 line_parts = [cell_lines[line_idx] for cell_lines in cells_lines]
-                print(" ".join(line_parts))  # 각 셀 사이에 공백 추가
-
+                # print(" ".join(line_parts))  # 각 셀 사이에 공백 추가
+                resultText += " ".join(line_parts[:14]) + "<bar>"
+        # print(resultText)
+        return resultText
 def emptyVerification(board,x,y):
     # print(board[x][y].num)
     # print(board[x][y].path)

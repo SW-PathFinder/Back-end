@@ -359,24 +359,101 @@ def getCardType(cardTtype, hint=""):
 
         
         case 17: # 3
-            return {"type":"sabotage","info":"mineCart"}
+            return {"type":"sabotage","info":"mineCart",
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|sabot|"),
+                        list("|minec|"),
+                        list("|     |"),
+                        list("┕-----┚")
+                    ])}
         case 18: # 3
-            return {"type":"sabotage","info":"lantern"}
+            return {"type":"sabotage","info":"lantern",
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|sabot|"),
+                        list("|lante|"),
+                        list("|     |"),
+                        list("┕-----┚")
+                    ])}
         case 19: # 3
-            return {"type":"sabotage","info":"pickaxe"}
+            return {"type":"sabotage","info":"pickaxe",
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|sabot|"),
+                        list("|picka|"),
+                        list("|     |"),
+                        list("┕-----┚")
+                    ])}
         case 20: # 2
-            return {"type":"repair","info":["mineCart"]}
+            return {"type":"repair","info":["mineCart"],
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|repai|"),
+                        list("|minec|"),
+                        list("|     |"),  # 수정: 공백 문자 길이 맞춤
+                        list("┕-----┚")
+                    ])}
         case 21: # 2
-            return {"type":"repair","info":["lantern"]}
+            return {"type":"repair","info":["lantern"],
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|repai|"),
+                        list("|lante|"),
+                        list("|     |"),  # 수정: 공백 문자 길이 맞춤
+                        list("┕-----┚")
+                    ])}
         case 22: # 2
-            return {"type":"repair","info":["pickaxe"]}
+            return {"type":"repair","info":["pickaxe"],
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|repai|"),
+                        list("|picka|"),
+                        list("|     |"),  # 수정: 공백 문자 길이 맞춤
+                        list("┕-----┚")
+                    ])}
         case 23: # 1
-            return {"type":"repair","info":["mineCart","lantern"]}
+            return {"type":"repair","info":["mineCart","lantern"],
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|repai|"),
+                        list("|minec|"),
+                        list("|lante|"),
+                        list("┕-----┚")
+                    ])}
         case 24: # 1
-            return {"type":"repair","info":["mineCart","pickaxe"]}
+            return {"type":"repair","info":["mineCart","pickaxe"],
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|repai|"),
+                        list("|minec|"),
+                        list("|picka|"),
+                        list("┕-----┚")
+                    ])}
         case 25: # 1
-            return {"type":"repair","info":["lantern","pickaxe"]}
+            return {"type":"repair","info":["lantern","pickaxe"],
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|repai|"),
+                        list("|lante|"),
+                        list("|picka|"),
+                        list("┕-----┚")
+                    ])}
         case 26: # 6
-            return {"type":"viewMap","info":"viewMap"}
+            return {"type":"viewMap","info":"viewMap",
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|view |"),
+                        list("|  Map|"),
+                        list("|     |"),
+                        list("┕-----┚")
+                    ])}
         case 27: # 3
-            return {"type":"rockFail","info":"rockFail"}
+            return {"type":"rockFail","info":"rockFail",
+                    "map": np.array([
+                        list("┏-----┓"),
+                        list("|rockF|"),
+                        list("|ail  |"),
+                        list("|     |"),
+                        list("┕-----┚")
+                    ])}

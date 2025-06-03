@@ -11,6 +11,11 @@ class Player:
 
     def setRole(self, role):
         self.role = role # worker / saboteur
+    def addGold(self, gold:int):
+        if gold < 0:
+            return False, "금은 음수일 수 없습니다."
+        self.gold += gold
+        return True
 
     def getLimitStatus(self):
         return True in self.limit.values()
