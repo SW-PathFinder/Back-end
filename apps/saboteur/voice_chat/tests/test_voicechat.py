@@ -1,5 +1,3 @@
-# apps/saboteur/voice_chat/tests/test_voicechat.py
-
 import os
 import time
 from uuid import uuid4
