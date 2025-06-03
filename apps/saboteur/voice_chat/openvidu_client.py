@@ -4,6 +4,8 @@ import requests
 from django.conf import settings
 from requests.auth import HTTPBasicAuth
 
+from apps.saboteur.voice_chat import session_store
+
 headers = {"Content-Type": "application/json"}
 
 def get_auth():
@@ -35,9 +37,25 @@ def createOpenviduSession(sessionId: str) -> str:
         headers=headers,
         verify=settings.OPENVIDU_VERIFY_SSL
     )
-    # 409 Conflict → 세션이 이미 존재하는 경우, 예외를 발생시키지 않고 그대로 sessionId 반환
+
     if response.status_code == 409:
-        return sessionId
+        # 이미 세션이 존재하므로 참가자 수 확인
+        if session_store.getParticipantCount(sessionId) == 0:
+            # 참가자 없음 → 삭제 후 재시도
+            deleteOpenviduSession(sessionId)
+            retry = requests.post(
+                url,
+                json=payload,
+                auth=get_auth(),
+                headers=headers,
+                verify=settings.OPENVIDU_VERIFY_SSL
+            )
+            retry.raise_for_status()
+            return retry.json()["id"]
+        else:
+            # 참가자 있음 → 그냥 기존 세션 사용
+            return sessionId
+
     response.raise_for_status()
     return response.json()["id"]
 
