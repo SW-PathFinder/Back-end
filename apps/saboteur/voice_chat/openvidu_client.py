@@ -72,3 +72,4 @@ def generateOpenviduToken(sessionId: str, userId: str) -> str:
     )
     response.raise_for_status()
     return response.json()["token"]
+
