@@ -9,6 +9,20 @@ headers = {"Content-Type": "application/json"}
 def get_auth():
     return HTTPBasicAuth("OPENVIDUAPP", settings.OPENVIDU_SECRET)
 
+def deleteOpenviduSession(session_id: str):
+    """
+    OpenVidu 세션을 강제로 삭제 (강제 종료 포함)
+    """
+    url = f"{settings.OPENVIDU_URL}/api/sessions/{session_id}"
+    response = requests.delete(
+        url,
+        auth=get_auth(),
+        headers=headers,
+        verify=settings.OPENVIDU_VERIFY_SSL
+    )
+    if response.status_code not in (204, 404):
+        response.raise_for_status()
+
 
 def createOpenviduSession(sessionId: str) -> str:
     url = f"{settings.OPENVIDU_URL}/api/sessions"
