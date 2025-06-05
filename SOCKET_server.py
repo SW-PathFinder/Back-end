@@ -24,14 +24,14 @@ import string
 import asyncio  # 비동기 타이머를 위한 라이브러리
 
 # ─────────────────────────  게임 로직 ─────────────────────────
-from apps.logic.game import Game  # 기존 Game 클래스를 그대로 사용
-from apps.logic.card import Card
+from logic.game import Game  # 기존 Game 클래스를 그대로 사용
+from logic.card import Card
 # ─────────────────────────  전역 저장소 ────────────────────────
 game_sessions: Dict[str, Game] = {}   # room_name → Game 인스턴스
 sid_to_user: Dict[str, str] = {}      # sid → username
 user_to_sid: Dict[str, str] = {}      # username → sid (DM용)
 connected_users: set = set()          # 연결된 사용자 이름 목록 (중복 방지용)
-
+response_index:int = 0          # 응답 인덱스 (브로드캐스트 순서 보장용)
 # 게임 방 정보를 저장하는 구조
 class GameRoom:
     def __init__(self, room_id: str, host: str, is_public: bool, max_players: int, card_helper: bool):
@@ -168,11 +168,17 @@ def get_game(room: str) -> Game:
 
 async def broadcast(room: str, event: str, data: Any):
     """방 전체 브로드캐스트"""
+    global response_index
+    data["id"] = response_index
+    response_index += 1
     await sio.emit(event, data, room=room)
 
 
 async def send_private(username: str, event: str, data: Any):
     """특정 유저에게만 전송 (sid 매핑)"""
+    global response_index
+    data["id"] = response_index
+    response_index += 1
     sid = user_to_sid.get(username)
     if sid:
         await sio.emit(event, data, to=sid)
@@ -210,13 +216,13 @@ async def connect(sid, environ):
 async def set_username(sid, data):
     """사용자 이름 설정 및 검증"""
     username = data.get("username", "").strip()
-    
+    requestID = data.get("requestId","server_response")
     if not username:
-        await sio.emit("username_result", {"success": False, "message": "사용자 이름이 비어있습니다."}, to=sid)
+        await sio.emit("username_result", {"requestId":requestID,"success": False, "message": "사용자 이름이 비어있습니다."}, to=sid)
         return
     
     if username in connected_users:
-        await sio.emit("username_result", {"success": False, "message": "이미 사용 중인 사용자 이름입니다."}, to=sid)
+        await sio.emit("username_result", {"requestId":requestID,"success": False, "message": "이미 사용 중인 사용자 이름입니다."}, to=sid)
         return
     
     # 기존 사용자 이름이 있다면 제거
@@ -230,7 +236,7 @@ async def set_username(sid, data):
     sid_to_user[sid] = username
     user_to_sid[username] = sid
     
-    await sio.emit("username_result", {"success": True, "username": username}, to=sid)
+    await sio.emit("username_result", {"requestId":requestID,"success": True, "username": username}, to=sid)
     print(f"사용자 이름 설정: {username} (sid: {sid})")
 
 
@@ -252,6 +258,7 @@ async def join_game(sid, data):
     """기존 게임 참가 로직 (backward compatibility)"""
     room = data.get("room")
     player = data.get("player")
+    requestID = data.get("requestId","server_response")
     print(f"▶ join_game event: sid={sid}, room={room}, player={player}")
     print(f"▶ join_game raw data: {data}")
     # room 또는 player 정보 누락 시 무시
@@ -286,7 +293,7 @@ async def join_game(sid, data):
     
     # 전체 알림
     print(f"▶ 새 플레이어 참가 알림: room={room}, player={player}")
-    await broadcast(room, "player_joined", {
+    await broadcast(room, "player_joined", {'requestId':requestID,
         "player": player,
         "players": list(game.players.keys()),
         "room": room,
@@ -298,6 +305,7 @@ async def join_game(sid, data):
 async def start_game(sid, data):
     """기존 게임 시작 로직 (backward compatibility)"""
     room = data.get("room")
+    requestID = data.get("requestId","server_response")
     if not room:
         return
     
@@ -325,7 +333,7 @@ async def start_game(sid, data):
     game.startGame()
     
     # 게임 시작 이벤트 브로드캐스트
-    await broadcast(room, "game_started", {
+    await broadcast(room, "game_started", {'requestId':requestID,
         "target": "all",
         "type": "game_started",
         "data": {
@@ -341,6 +349,7 @@ async def game_action(sid, data):
     room = data.get("room")
     player = data.get("player")
     action = data.get("action")
+    requestID = data.get("requestId","server_response")
     if not room or not player or not action:
         return
     
@@ -370,6 +379,7 @@ async def game_action(sid, data):
 
     # 브로드캐스트 또는 개인 전송
     for res in responses:
+        res["requestId"] = requestID  # 응답에 requestId 추가
         if isinstance(res, dict) and res.get("target") == "all":
             await broadcast(room, "game_update", res)
         elif isinstance(res, dict):
@@ -647,8 +657,9 @@ async def process_chat_command(sid, room, username, message):
 async def create_room(sid, data):
     """방 생성 이벤트"""
     username = sid_to_user.get(sid)
+    requestID = data.get("requestId","server_response")
     if not username:
-        await sio.emit("error", {"message": "로그인이 필요합니다."}, to=sid)
+        await sio.emit("error", {"requestId":requestID,"message": "로그인이 필요합니다."}, to=sid)
         return
     
     max_players = data.get("max_players", 3)
@@ -657,7 +668,7 @@ async def create_room(sid, data):
     
     # 유효성 검사
     if not (3 <= max_players <= 10):
-        await sio.emit("error", {"message": "유효하지 않은 플레이어 수입니다."}, to=sid)
+        await sio.emit("error", {"requestId":requestID,"message": "유효하지 않은 플레이어 수입니다."}, to=sid)
         return
     
     # 방 코드 생성
@@ -686,7 +697,7 @@ async def create_room(sid, data):
     await sio.enter_room(sid, room_id)
     
     # 방 생성 결과 알림
-    await sio.emit("room_created", {
+    await sio.emit("room_created", {"requestId":requestID,
         "success": True,
         "room_id": room_id,
         "room": game_rooms[room_id].to_dict()
@@ -699,13 +710,14 @@ async def create_room(sid, data):
 async def search_room_by_code(sid, data):
     """방 코드로 검색"""
     username = sid_to_user.get(sid)
+    requestID = data.get("requestId","server_response")
     if not username:
         await sio.emit("error", {"message": "로그인이 필요합니다."}, to=sid)
         return
     
     room_code = data.get("room_code")
     if not room_code or room_code not in game_rooms:
-        await sio.emit("room_search_result", {
+        await sio.emit("room_search_result", {"requestId":requestID,
             "success": False,
             "message": "존재하지 않는 방입니다."
         }, to=sid)
@@ -715,7 +727,7 @@ async def search_room_by_code(sid, data):
     
     # 이미 시작된 방인지 확인
     if room.is_started:
-        await sio.emit("room_search_result", {
+        await sio.emit("room_search_result", {"requestId":requestID,
             "success": False,
             "message": "이미 게임이 시작된 방입니다."
         }, to=sid)
@@ -723,7 +735,7 @@ async def search_room_by_code(sid, data):
     
     # 방 인원 초과 여부 확인
     if len(room.players) >= room.max_players:
-        await sio.emit("room_search_result", {
+        await sio.emit("room_search_result", {"requestId":requestID,
             "success": False,
             "message": "방 인원이 가득 찼습니다."
         }, to=sid)
@@ -732,7 +744,7 @@ async def search_room_by_code(sid, data):
     # 방에 참가
     await join_room_by_id(sid, username, room_code)
     
-    await sio.emit("room_search_result", {
+    await sio.emit("room_search_result", {"requestId":requestID,
         "success": True,
         "room": room.to_dict()
     }, to=sid)
@@ -742,28 +754,29 @@ async def search_room_by_code(sid, data):
 async def quick_match(sid, data):
     """빠른 매칭 기능"""
     username = sid_to_user.get(sid)
+    requestID = data.get("requestId","server_response")
     if not username:
-        await sio.emit("error", {"message": "로그인이 필요합니다."}, to=sid)
+        await sio.emit("error", {"requestId":requestID,"message": "로그인이 필요합니다."}, to=sid)
         return
     
-    player_count = data.get("player_count", 3)
+    max_players = data.get("max_players", 3)
     card_helper = data.get("card_helper", False)
     
     # 유효성 검사
-    if not (3 <= player_count <= 10):
-        await sio.emit("quick_match_result", {
+    if not (3 <= max_players <= 10):
+        await sio.emit("quick_match_result", {"requestId":requestID,
             "success": False,
             "message": "유효하지 않은 플레이어 수입니다."
         }, to=sid)
         return
     
     # 조건에 맞는 방 찾기
-    matching_rooms = find_matching_rooms(player_count, card_helper)
+    matching_rooms = find_matching_rooms(max_players, card_helper)
     
     if not matching_rooms:
         # 매칭 실패시 새 방 생성
         await create_room(sid, {
-            "max_players": player_count,
+            "max_players": max_players,
             "is_public": True,
             "card_helper": card_helper
         })
@@ -778,7 +791,7 @@ async def quick_match(sid, data):
     # 방에 참가
     await join_room_by_id(sid, username, room_id)
     
-    await sio.emit("quick_match_result", {
+    await sio.emit("quick_match_result", {"requestId":requestID,
         "success": True,
         "room": game_rooms[room_id].to_dict()
     }, to=sid)
@@ -944,4 +957,33 @@ if __name__ == "__main__":
     # reload 기능은 CLI로 실행할 때만 사용 가능하므로 직접 실행할 때는 끈다
     import uvicorn
     print("Server running → http://localhost:3000 (리로드 없음)")
-    uvicorn.run(app, host="0.0.0.0", port=3000)
+    # uvicorn.run(app, host="0.0.0.0", port=3000)
+    # uvicorn.run(
+    #     app,
+    #     host="0.0.0.0",
+    #     port=3000,
+    #     ssl_keyfile="./openvidu-selfsigned.key",   # 개인키 파일 경로
+    #     ssl_certfile="./openvidu-selfsigned.crt",   # 인증서 파일 경로
+    # )
+    
+    reload_mode = True  # CLI에서 --reload 옵션을 사용하면 True로 설정
+    
+    if reload_mode:
+        print("Server running with auto-reload → http://localhost:3000")
+        uvicorn.run(
+            "SOCKET_server:app",  # 문자열로 지정
+            host="0.0.0.0",
+            port=3001,
+            reload=True,  # 리로드 활성화
+            ssl_keyfile="./SSL/openvidu-selfsigned.key",
+            ssl_certfile="./SSL/openvidu-selfsigned.crt",
+        )
+    else:
+        print("Server running → http://localhost:3000 (리로드 없음)")
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=3000,
+            ssl_keyfile="./SSL/openvidu-selfsigned.key",
+            ssl_certfile="./SSL/openvidu-selfsigned.crt",
+        )

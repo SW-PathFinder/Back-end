@@ -425,9 +425,7 @@
     // 서버 연결 함수
     function connectToServer(inputName = null) {
       // 서버에 연결
-      socket = io('http://localhost:3000');
-      // socket = io('http://money.ipdisk.co.kr:3000');
-      
+      socket = io('https://money.ipdisk.co.kr:3000');
       
       socket.on('connect', () => {
         console.log(`서버 연결됨: ${socket.id}`);
@@ -556,7 +554,7 @@
         return;
       }
       
-      const playerCount = parseInt(document.getElementById('quickMatchPlayerCount').value);
+      const maxPlayers = parseInt(document.getElementById('quickMatchPlayerCount').value);
       const cardHelper = document.getElementById('quickMatchCardHelper').checked;
       
       quickMatchModal.hide();
@@ -566,7 +564,7 @@
       startMatchingTimer();
       
       socket.emit('quick_match', {
-        player_count: playerCount,
+        max_players: maxPlayers,
         card_helper: cardHelper
       });
     }
