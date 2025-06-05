@@ -24,8 +24,8 @@ import string
 import asyncio  # 비동기 타이머를 위한 라이브러리
 
 # ─────────────────────────  게임 로직 ─────────────────────────
-from apps.logic.game import Game  # 기존 Game 클래스를 그대로 사용
-from apps.logic.card import Card
+from apps.game import Game  # 기존 Game 클래스를 그대로 사용
+from apps.card import Card
 # ─────────────────────────  전역 저장소 ────────────────────────
 game_sessions: Dict[str, Game] = {}   # room_name → Game 인스턴스
 sid_to_user: Dict[str, str] = {}      # sid → username

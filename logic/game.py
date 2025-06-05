@@ -32,11 +32,7 @@ class Game:
         self.players = {key: self.players[key] for key in playersKeys}
         self.currentPlayer = playersKeys[0]
         # res = self.roundStart()
-        print("게임이 시작되었습니다.")
-        print(f"현재 플레이어: {self.currentPlayer}")
-        print(f"현재플레이어 핸드 : {[card.num for card in self.players[self.currentPlayer].hand]}")
-        print(self.players[self.currentPlayer].__dict__)
-        pass
+        return True
     
 
 ##### 인게임 #######
@@ -356,7 +352,7 @@ class Game:
         return {
                 "round": self.currentRound,
                 "gold": self.players[player].gold,
-                "hands": [{"cardId": card.num, "reverse": card.flip} for card in self.players[player].hand],
+                "hands": [{"cardId": card.num, "reverse": card.flip==True} for card in self.players[player].hand],
                 "currentPlayerId": self.currentPlayer,
                 "board": [{"x": x, "y": y, "cardId": self.board.board[x, y].num if self.board.board[x,y].num not in  (-2,-4,-6) else -8 , "reverse": self.board.board[x, y].flip == True} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0],
                 "deckCount": len(self.cards),

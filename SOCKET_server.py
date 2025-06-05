@@ -261,7 +261,6 @@ async def join_game(sid, data):
     requestID = data.get("requestId","server_response")
     print(f"▶ join_game event: sid={sid}, room={room}, player={player}")
     print(f"▶ join_game raw data: {data}")
-    # room 또는 player 정보 누락 시 무시
     if not room or not player:
         print(f"Invalid join_game data: {data}")
         return
@@ -526,6 +525,11 @@ async def process_chat_command(sid, room, username, message):
                     }
                     await send_private(username, "private_game_update", responses)
                     return
+
+            case "playerstate":
+                await process_json_command(sid, room, username, '{"type": "playerState", "data": {}}')
+                return
+            
             case "path":
                 try:
                     x = int(parts[1])
@@ -883,16 +887,19 @@ async def start_countdown(room_id: str, seconds: int = 5):
         print(f"방 {room_id} - 카운트다운 종료, 게임 시작")
         game = get_game(room_id)
         print(game)
-        responses = game.startGame()
-        print(f"게임 시작 응답: {responses}")
-        print(game.__dict__)
-        responses = game.action("all","roundStart")
-        print(responses)
-        for res in responses:
-            if isinstance(res, dict) and res.get("target") == "all":
-                await broadcast(room_id, "game_update", res)
-            elif isinstance(res, dict):
-                await send_private(res.get("target"), "private_game_update", res)
+        if game.startGame():
+            res = {
+                "type": "game_started","data": {
+                    "players": list(game.players.keys()),}
+            }
+            await broadcast(room_id, "game_update", res)
+            responses = game.action("all","roundStart")
+            print(responses)
+            for res in responses:
+                if isinstance(res, dict) and res.get("target") == "all":
+                    await broadcast(room_id, "game_update", res)
+                elif isinstance(res, dict):
+                    await send_private(res.get("target"), "private_game_update", res)
         
         print(f"방 {room_id} - 자동 게임 시작 ({len(room.players)}/{room.max_players}명)")
 
@@ -957,33 +964,12 @@ if __name__ == "__main__":
     # reload 기능은 CLI로 실행할 때만 사용 가능하므로 직접 실행할 때는 끈다
     import uvicorn
     print("Server running → http://localhost:3000 (리로드 없음)")
-    # uvicorn.run(app, host="0.0.0.0", port=3000)
-    # uvicorn.run(
-    #     app,
-    #     host="0.0.0.0",
-    #     port=3000,
-    #     ssl_keyfile="./openvidu-selfsigned.key",   # 개인키 파일 경로
-    #     ssl_certfile="./openvidu-selfsigned.crt",   # 인증서 파일 경로
-    # )
-    
-    reload_mode = True  # CLI에서 --reload 옵션을 사용하면 True로 설정
-    
-    if reload_mode:
-        print("Server running with auto-reload → http://localhost:3000")
-        uvicorn.run(
-            "SOCKET_server:app",  # 문자열로 지정
-            host="0.0.0.0",
-            port=3001,
-            reload=True,  # 리로드 활성화
-            ssl_keyfile="./SSL/openvidu-selfsigned.key",
-            ssl_certfile="./SSL/openvidu-selfsigned.crt",
-        )
-    else:
-        print("Server running → http://localhost:3000 (리로드 없음)")
-        uvicorn.run(
-            app,
-            host="0.0.0.0",
-            port=3000,
-            ssl_keyfile="./SSL/openvidu-selfsigned.key",
-            ssl_certfile="./SSL/openvidu-selfsigned.crt",
-        )
+
+    print("Server running → http://localhost:3000 (리로드 없음)")
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=3000,
+        ssl_keyfile="./SSL/openvidu-selfsigned.key",
+        ssl_certfile="./SSL/openvidu-selfsigned.crt",
+    )
