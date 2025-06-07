@@ -61,10 +61,11 @@ class Board:
             return False,"이미 오픈된 카드입니다."
         elif self.gold == (x,y):
             # 보물찾기 성공
-            return True,"gold"
+            return True,self.board[x,y].num-1
         elif self.rock[0] == (x,y) or self.rock[1] == (x,y):
             # 돌 찾기 성공
-            return True,"rock"
+            return True,self.board[x,y].num-1
+        
         else:
             # 아무것도 없음
             return False,"잘못된 위치정보입니다."
@@ -187,7 +188,7 @@ class Board:
         except:
             return False
     
-
+    # debug
     def showBoard(self):
         rows, cols = self.board.shape
         # 배열의 각 행을 순회합니다.

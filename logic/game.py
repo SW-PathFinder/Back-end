@@ -6,8 +6,10 @@ from typing import Dict, List, Tuple , Any
 import random
 class Game:
     def __init__(self):
+        ### 공통
         self.players: Dict[str, Player] = {}      # 플레이어 객체들을 저장
         self.tasks : List[Dict] = []           # [{type:"path"|"action", "data":{}}]
+        ### SABOTEAUR
         self.board = Board(self)
         self.cards: List[Card] = []
         self.goldCard = []
@@ -163,7 +165,7 @@ class Game:
                     if result[0] == True:
                         # 맵 보기 성공
                         self.tasks.append({"player":self.currentPlayer,"target":"all","type":"viewMap","data":{"player":self.currentPlayer,"target":(x,y)}})
-                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"revealDest","data":{"cardType":result[1]}})
+                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"revealDest","data":{"x":x,"y":y,"cardType":result[1]}})
                         self._useCard(handNum)
                         self._nextTrun()
                     else:
@@ -352,6 +354,7 @@ class Game:
         return {
                 "round": self.currentRound,
                 "gold": self.players[player].gold,
+                "role": self.players[player].role,
                 "hands": [{"cardId": card.num, "reverse": card.flip==True} for card in self.players[player].hand],
                 "currentPlayerId": self.currentPlayer,
                 "board": [{"x": x, "y": y, "cardId": self.board.board[x, y].num if self.board.board[x,y].num not in  (-2,-4,-6) else -8 , "reverse": self.board.board[x, y].flip == True} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0],

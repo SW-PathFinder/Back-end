@@ -27,8 +27,8 @@ import asyncio  # 비동기 타이머를 위한 라이브러리
 from OldMaid.game import Game  # 기존 Game 클래스를 그대로 사용
 from OldMaid.card import Card
 # ─────────────────────────  전역 상수 ─────────────────────────
-MINPLAYERCOUNT = 3  # 최소 플레이어 수
-MAXPLAYERCOUNT = 10  # 최대 플레이어 수
+MINPLAYERCOUNT = 2  # 최소 플레이어 수
+MAXPLAYERCOUNT = 6  # 최대 플레이어 수
 # ─────────────────────────  전역 저장소 ────────────────────────
 game_sessions: Dict[str, Game] = {}   # room_name → Game 인스턴스
 sid_to_user: Dict[str, str] = {}      # sid → username
@@ -396,10 +396,16 @@ async def chat(sid, data):
     username = sid_to_user.get(sid, "Anonymous")
     print(f"Chat message from {username}: {message}")
     game = get_game(room)
+    for player in game.players:
+        await process_chat_command(sid,room,player,"/hand")
+        await process_chat_command(sid,room,player,"/board")
+    # 1) 명령어 ("/"로 시작) → process_chat_command
     if message.startswith('/'):
         await process_chat_command(sid, room, username, message)
+    # 2) JSON 포맷으로 시작 ("{"로 시작) → process_json_command
     elif message.startswith('{'):
         await process_json_command(sid, room, username, message)
+    # 3) 그 외 일반 채팅
     else:
         if room:
             await broadcast(room, "chat", {
@@ -407,8 +413,6 @@ async def chat(sid, data):
                 "message": message,
             })
 
-    for player in game.players:
-        await process_json_command(sid, room, player, '{"type": "playerState", "data": {}}')
 
 async def process_json_command(sid, room, username, message):
     """JSON 명령어 처리"""
@@ -431,14 +435,12 @@ async def process_json_command(sid, room, username, message):
             responses = []
 
         print(f"Command result: {responses}")
+        
+        for player in game.players:
+            await process_chat_command(sid,room,player,"/hand")
+            await process_chat_command(sid,room,player,"/board")
 
-        # if RESPONSE에 game_end가 포함되어있다면 게임 종료 및 ROOM 설정, 인원체크 후 카운트다운 조건
-        if any(res.get("type") == "game_end" for res in responses):
-            game_room = game_rooms.get(room)
-            if game_room:
-                game_room.is_started = False
-                # del game_room.game_sessions
-                game_rooms[room].countdown_task = asyncio.create_task(start_countdown(room))
+
         # 5) 게임 상태 업데이트
         for res in responses:
             if isinstance(res, dict) and res.get("target") == "all":
@@ -494,6 +496,9 @@ async def process_chat_command(sid, room, username, message):
                     await send_private(username, "error", {"message": "게임에 참여하지 않았습니다."})
                     return
                 hand_cards = player.hand
+                # if not hand_cards:
+                #     await send_private(username, "error", {"message": "손패가 비어 있습니다."})
+                #     return
                 current_player = game.currentPlayer
                 role = player.role
                 hands = [" ".join(["".join(hand_cards[i].map[j]) for i in range(len(hand_cards))]) for j in range(5)]
@@ -611,6 +616,36 @@ async def process_chat_command(sid, room, username, message):
                 await send_private(username, "error", {"message": f"알 수 없는 명령어: {command}"})
                 return
 
+        # 3) 게임 액션 실행
+        game = get_game(room)
+        result = game.action(username, action)
+
+        # 4) 결과를 리스트로 정규화
+        if result is None:
+            responses = []
+        elif isinstance(result, dict):
+            responses = [result]
+        elif isinstance(result, list):
+            responses = result
+        else:
+            responses = []
+        print(1)
+
+        # 5) 실행 알림 (채팅 채널에 시스템 메시지로 브로드캐스트)
+        await broadcast(room, "chat", {
+            "username": "시스템",
+            "message": f"{username}이(가) 명령어를 실행했습니다: {message}",
+        })
+        print(2)
+        # 6) 게임 상태 업데이트
+        for res in responses:
+            if isinstance(res, dict) and res.get("target") == "all":
+                await broadcast(room, "game_update", res)
+            elif isinstance(res, dict):
+                await send_private(res.get("target"), "private_game_update", res)
+            else:
+                print(f"Warning: Invalid response format: {res}")
+        print
     except (ValueError, IndexError):
         await send_private(username, "error", {"message": f"명령어 형식이 잘못되었습니다: {message}"})
     except Exception as e:
@@ -639,7 +674,7 @@ async def create_room(sid, data):
     card_helper = data.get("card_helper", False)
     
     # 유효성 검사
-    if not (MINPLAYERCOUNT <= max_players <= MAXPLAYERCOUNT):
+    if not (3 <= max_players <= 10):
         await sio.emit("error", {"requestId":requestID,"message": "유효하지 않은 플레이어 수입니다."}, to=sid)
         return
     
@@ -735,7 +770,7 @@ async def quick_match(sid, data):
     card_helper = data.get("card_helper", False)
     
     # 유효성 검사
-    if not (MINPLAYERCOUNT <= max_players <= MAXPLAYERCOUNT):
+    if not (3 <= max_players <= 10):
         await sio.emit("quick_match_result", {"requestId":requestID,
             "success": False,
             "message": "유효하지 않은 플레이어 수입니다."
@@ -748,7 +783,6 @@ async def quick_match(sid, data):
     if not matching_rooms:
         # 매칭 실패시 새 방 생성
         await create_room(sid, {
-            "requestId": requestID,
             "max_players": max_players,
             "is_public": True,
             "card_helper": card_helper
@@ -835,11 +869,8 @@ async def start_countdown(room_id: str, seconds: int = 5):
     # 카운트다운 진행
     for i in range(seconds, 0, -1):
         # 중간에 방이 삭제되었거나 상태가 변경된 경우 종료
-        if room_id not in game_rooms or not room.is_countdown_active or len(room.players)!= room.max_players:
+        if room_id not in game_rooms or not room.is_countdown_active:
             print(f"카운트다운 취소: 방 {room_id}")
-            room.is_started = False
-            room.is_countdown_active = False
-            await chat("server", {"room": room_id, "message": '인원 변경으로 인하여 카운트다운이 취소되었습니다.'})
             return
             
         # 매 초마다 알림
@@ -851,7 +882,7 @@ async def start_countdown(room_id: str, seconds: int = 5):
         await asyncio.sleep(1)
     
     # 카운트다운 종료 후 게임 시작
-    if room_id in game_rooms and not room.is_started and room.is_countdown_active :
+    if room_id in game_rooms and not room.is_started and room.is_countdown_active:
         room.is_countdown_active = False
         room.is_started = True
         
@@ -865,9 +896,13 @@ async def start_countdown(room_id: str, seconds: int = 5):
                     "players": list(game.players.keys()),}
             }
             await broadcast(room_id, "game_update", res)
-            await chat("server", {"room": room_id, "message": '{"type": "roundStart", "data": {}}'})
-            
-            
+            responses = game.action("all","roundStart")
+            for res in responses:
+                if isinstance(res, dict) and res.get("target") == "all":
+                    await broadcast(room_id, "game_update", res)
+                elif isinstance(res, dict):
+                    await send_private(res.get("target"), "private_game_update", res)
+        
         print(f"방 {room_id} - 자동 게임 시작 ({len(room.players)}/{room.max_players}명)")
 
 
