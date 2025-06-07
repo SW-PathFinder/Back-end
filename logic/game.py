@@ -115,13 +115,15 @@ class Game:
                 self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":0}})
                 print(4)
                 result = self._drawCard()
+                print("result : ",result)
                 print(5)
                 if result[0]:
                     print(6)
-                    self.tasks.append({"player":self.currentPlayer,"target":player,"type":"drawCard","data":{"card":result[1].num}})
+                    self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num}})
                 else:
                     print(7)
                     self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
+                print(self.tasks)
                 print(8)
                 self._nextTrun()
             else:
