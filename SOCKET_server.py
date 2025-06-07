@@ -404,46 +404,46 @@ async def join_game(sid, data):
     })
 
 
-@sio.event
-async def start_game(sid, data):
-    """기존 게임 시작 로직 (backward compatibility)"""
-    room = data.get("room")
-    requestID = data.get("requestId","server_response")
-    if not room:
-        return
+# @sio.event
+# async def start_game(sid, data):
+#     """기존 게임 시작 로직 (backward compatibility)"""
+#     room = data.get("room")
+#     requestID = data.get("requestId","server_response")
+#     if not room:
+#         return
     
-    # 현재 연결된 사용자만 게임 시작 가능
-    username = sid_to_user.get(sid)
-    if not username:
-        await sio.emit("error", {"message": "사용자 정보가 없습니다."}, to=sid)
-        return
+#     # 현재 연결된 사용자만 게임 시작 가능
+#     username = sid_to_user.get(sid)
+#     if not username:
+#         await sio.emit("error", {"message": "사용자 정보가 없습니다."}, to=sid)
+#         return
     
-    # 새로운 방 시스템에서 관리하는 방이면 해당 방 정보 업데이트
-    if room in game_rooms:
-        game_room = game_rooms[room]
-        if game_room.host != username:
-            await sio.emit("error", {"message": "방장만 게임을 시작할 수 있습니다."}, to=sid)
-            return
+#     # 새로운 방 시스템에서 관리하는 방이면 해당 방 정보 업데이트
+#     if room in game_rooms:
+#         game_room = game_rooms[room]
+#         if game_room.host != username:
+#             await sio.emit("error", {"message": "방장만 게임을 시작할 수 있습니다."}, to=sid)
+#             return
         
-        # 최소 인원 확인
-        if len(game_room.players) < 3:
-            await sio.emit("error", {"message": "최소 3명의 플레이어가 필요합니다."}, to=sid)
-            return
+#         # 최소 인원 확인
+#         if len(game_room.players) < 3:
+#             await sio.emit("error", {"message": "최소 3명의 플레이어가 필요합니다."}, to=sid)
+#             return
             
-        game_room.is_started = True
+#         game_room.is_started = True
         
-    game = get_game(room)
-    game.startGame()
+#     game = get_game(room)
+#     game.startGame()
     
-    # 게임 시작 이벤트 브로드캐스트
-    await broadcast(room, "game_started", {'requestId':requestID,
-        "target": "all",
-        "type": "game_started",
-        "data": {
-            "players": list(game.players.keys()),
-            "current_player": game.currentPlayer,
-        },
-    })
+#     # 게임 시작 이벤트 브로드캐스트
+#     await broadcast(room, "game_started", {'requestId':requestID,
+#         "target": "all",
+#         "type": "game_started",
+#         "data": {
+#             "players": list(game.players.keys()),
+#             "current_player": game.currentPlayer,
+#         },
+#     })
 
 
 @sio.event
@@ -968,6 +968,12 @@ async def start_countdown(room_id: str, seconds: int = 5):
         print(f"방 {room_id} - 카운트다운 종료, 게임 시작")
         game = get_game(room_id)
         print(game)
+        if game.startGame():
+            res = {
+                "type": "game_started","data": {
+                    "players": list(game.players.keys()),}
+            }
+            await broadcast(room_id, "game_update", res)
         await process_json_command("server", room_id, "server", '{"type": "roundStart", "data": {}}')
 
         await chat("server", {"room": room_id, "message": '라운드가 시작되었습니다.'})
