@@ -851,7 +851,7 @@ async def quick_match(sid, data):
     
     if not matching_rooms:
         # 매칭 실패시 새 방 생성
-        await create_room(sid, {
+        await create_room(sid, {"requestId":requestID,
             "max_players": max_players,
             "is_public": True,
             "card_helper": card_helper
@@ -962,15 +962,10 @@ async def start_countdown(room_id: str, seconds: int = 5):
         print(f"방 {room_id} - 카운트다운 종료, 게임 시작")
         game = get_game(room_id)
         print(game)
-        if game.startGame():
-            res = {
-                "type": "game_started","data": {
-                    "players": list(game.players.keys()),}
-            }
-            await broadcast(room_id, "game_update", res)
-            await chat("server", {"room": room_id, "message": '{"type": "roundStart", "data": {}}'})
-            
-            
+        await process_json_command("server", room_id, "server", '{"type": "roundStart", "data": {}}')
+
+        await chat("server", {"room": room_id, "message": '라운드가 시작되었습니다.'})
+
         print(f"방 {room_id} - 자동 게임 시작 ({len(room.players)}/{room.max_players}명)")
 
 

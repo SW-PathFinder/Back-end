@@ -118,12 +118,12 @@
     <div class="card">
       <h3>개인 핸드 정보</h3>
       <!-- <div id="privateHandViewer" style="height: 150px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px; font-family: monospace; white-space: pre-wrap;"></div> -->
-       <div id="privateHandViewer" style="height: 150px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px; font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace; white-space: pre; font-size: 14px; line-height: 0.6; letter-spacing: 0; font-variant-numeric: tabular-nums;"></div>
+       <div id="privateHandViewer" style="height: 150px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px; font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace; white-space: pre; font-size: 14px; line-height: 1.6; letter-spacing: 0; font-variant-numeric: tabular-nums;"></div>
     </div>
     
     <div class="card">
       <h3>개인 메시지</h3>
-      <div id="privateMessageViewer" style="height: 500px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px; font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace; white-space: pre; font-size: 14px; line-height: 0.6; letter-spacing: 0; font-variant-numeric: tabular-nums;"></div>
+      <div id="privateMessageViewer" style="height: 500px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px; font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace; white-space: pre; font-size: 14px; line-height: 1.6; letter-spacing: 0; font-variant-numeric: tabular-nums;"></div>
     </div>
     <div class="card">
       <!-- 여기에 index.html 삽입 -->
@@ -432,29 +432,36 @@
       
       socket.on('private_game_update', (data) => {
         // 만약 data.type === 'board_info'라면
-          if (data.type === 'board_info') {
+        console.log("private_game_update 이벤트 발생:", data);
+          if (data.type != 'playerState') {
+            log(`[비공개 업데이트] ${JSON.stringify(data)}`);
+          }
+          if (data.type === 'playerState') {
             const privateViewer = document.getElementById('privateMessageViewer');
-          
-          // data.data가 있는 경우 표시
-          if (data.data) {
+            privateViewer.textContent = ''; // 기존 내용 초기화
+
             // <bar> 태그가 포함되어 있는 경우 줄바꿈 처리
-            if (typeof data.data === 'string' && data.data.includes('<bar>')) {
-              const lines = data.data.split('<bar>');
-              privateViewer.textContent = lines.join('\n');
+            if (typeof data.board === 'string' && data.board.includes('<bar>')) {
+              const lines = data.board.split('<bar>');
+              lines.forEach((line, index) => {
+                if (index > 0) privateViewer.textContent += '\n';
+                privateViewer.textContent += line;
+              });
             } else {
               // 문자열이 아닌 경우 JSON 형태로 변환하여 표시
-              privateViewer.textContent = typeof data.data === 'string' ? 
-                data.data : JSON.stringify(data.data, null, 2);
+              privateViewer.textContent = typeof data.board === 'string' ? 
+                data.board : JSON.stringify(data.board, null, 2);
             }
-          }
-          return 
-          }
-          if (data.type ==="hand_info") {
+
+
             const privateHandViewer = document.getElementById('privateHandViewer');
+            privateHandViewer.textContent = ''; // 기존 내용 초기화
             // 개인 핸드 정보 표시
-            if (data.data ) {
-              console.log("개인 핸드 정보:", data.data);
-              privateHandViewer.textContent = data.data;
+            if (data.hand ) {
+              data.hand.forEach((card, index) => {
+                if (index > 0) privateHandViewer.textContent += '\n';
+                privateHandViewer.textContent += card;
+              });
             } else {
               privateHandViewer.textContent = '개인 핸드 정보가 없습니다.';
             }
@@ -462,7 +469,7 @@
           }
         
         // 로그에 메시지 기록
-        log(`[비공개 업데이트] ${JSON.stringify(data)}`);
+        // log(`[비공개 업데이트] ${JSON.stringify(data)}`);
         
         // 개인 메시지 뷰어에 데이터 표시
         

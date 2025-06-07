@@ -24,8 +24,8 @@ import string
 import asyncio  # 비동기 타이머를 위한 라이브러리
 
 # ─────────────────────────  게임 로직 ─────────────────────────
-from OldMaid.game import Game  # 기존 Game 클래스를 그대로 사용
-from OldMaid.card import Card
+from logic.game import Game  # 기존 Game 클래스를 그대로 사용
+from logic.card import Card
 # ─────────────────────────  전역 상수 ─────────────────────────
 MINPLAYERCOUNT = 3  # 최소 플레이어 수
 MAXPLAYERCOUNT = 10  # 최대 플레이어 수
@@ -48,6 +48,12 @@ class GameRoom:
         self.countdown_task = None          # 카운트다운 태스크 참조
         self.is_countdown_active = False    # 카운트다운 활성화 여부
 
+
+        # ───────────────────────── 턴타이머 ────────────────────
+        self.turn_timer_task = None         # 턴 타이머 태스크 참조
+        self.current_turn_player = None     # 현재 턴 플레이어
+        self.turn_timer_duration = 30       # 턴 타이머 시간 (초)
+
     def to_dict(self):
         """방 정보를 딕셔너리로 변환"""
         return {
@@ -60,6 +66,95 @@ class GameRoom:
             "player_count": len(self.players),
             "is_started": self.is_started
         }
+    async def start_turn_timer(self, current_player: str, duration: int = 30):
+        """턴 타이머 시작"""
+        # 이전 타이머가 있다면 취소
+        await self.cancel_turn_timer()
+        
+        self.current_turn_player = current_player
+        self.turn_timer_duration = duration
+        
+        print(f"방 {self.room_id} - {current_player}의 턴 타이머 시작 ({duration}초)")
+        
+        # 턴 타이머 시작 알림
+        await broadcast(self.room_id, "turn_timer_started", {
+            "current_player": current_player,
+            "duration": duration,
+            "message": f"{current_player}님의 턴입니다. {duration}초 안에 행동하세요!"
+        })
+        
+        # 비동기 타이머 시작
+        self.turn_timer_task = asyncio.create_task(self._run_turn_timer(current_player, duration))
+
+    async def _run_turn_timer(self, current_player: str, duration: int):
+        """턴 타이머 실행 (내부 메서드)"""
+        try:
+            # 타이머 진행
+            for i in range(duration, 0, -1):
+                # 방이 삭제되었거나 게임이 끝난 경우 종료
+                if not self.is_started:
+                    print(f"턴 타이머 취소: 방 {self.room_id} - 게임 종료")
+                    return
+                
+                # 게임에서 현재 플레이어가 변경된 경우 (이미 행동을 했을 경우) 종료
+                game = get_game(self.room_id)
+                if game.currentPlayer != current_player:
+                    print(f"턴 타이머 취소: 플레이어가 이미 행동함 ({current_player} -> {game.currentPlayer})")
+                    return
+                    
+                # 10초, 5초, 3초, 2초, 1초일 때만 알림 (너무 많은 알림 방지)
+                if i in [10, 5, 3, 2, 1]:
+                    # await broadcast(self.room_id, "turn_timer_tick", {
+                    #     "current_player": current_player,
+                    #     "seconds_left": i,
+                    #     "message": f"{current_player}님의 턴 - 남은 시간: {i}초"
+                    # })
+                    await chat("server", {"room": self.room_id, "message": '' + current_player + '님의 턴 - 남은 시간: ' + str(i) + '초'})
+                
+                await asyncio.sleep(1)
+            
+            # 타이머 종료 후 자동 턴 변경
+            if self.is_started:
+                game = get_game(self.room_id)
+                
+                # 여전히 같은 플레이어의 턴인 경우에만 자동 턴 변경
+                if game.currentPlayer == current_player:
+                    print(f"방 {self.room_id} - {current_player}의 시간 초과, 자동 턴 변경")
+                    
+                    # 자동 턴 변경 알림
+                    # await broadcast(self.room_id, "turn_timeout", {
+                    #     "player": current_player,
+                    #     "message": f"{current_player}님이 시간 초과로 턴이 넘어갑니다."
+                    # })
+                    await chat("server", {"room": self.room_id, "message": '' + current_player + '님이 시간 초과로 턴이 넘어갑니다.'})
+                    
+                    
+                    # 게임 로직에서 턴 변경 실행
+                    try:
+                        await chat(user_to_sid.get(self.current_turn_player), {"room": self.room_id, "message": '{"type":"endTime"}'})
+                    except Exception as e:
+                        print(f"자동 턴 변경 중 오류: {e}")
+                        
+        except asyncio.CancelledError:
+            print(f"방 {self.room_id}의 턴 타이머가 취소되었습니다.")
+        finally:
+            # 타이머 정리
+            self.turn_timer_task = None
+            self.current_turn_player = None
+
+    async def cancel_turn_timer(self):
+        """현재 진행 중인 턴 타이머 취소"""
+        if self.turn_timer_task and not self.turn_timer_task.done():
+            self.turn_timer_task.cancel()
+            try:
+                await self.turn_timer_task
+            except asyncio.CancelledError:
+                pass
+            print(f"방 {self.room_id}의 턴 타이머가 취소되었습니다.")
+        
+        self.turn_timer_task = None
+        self.current_turn_player = None
+
 
 # 게임방 컬렉션 (room_id → GameRoom)
 game_rooms: Dict[str, GameRoom] = {} 
@@ -353,6 +448,7 @@ async def game_action(sid, data):
     action = data.get("action")
     requestID = data.get("requestId","server_response")
     if not room or not player or not action:
+        print(f"Invalid game_action data: {data}")
         return
     
     # 현재 사용자의 이름이 아닌 경우 (sid가 일치하지 않음)
@@ -393,7 +489,7 @@ async def chat(sid, data):
     """일반 채팅 브로드캐스트 및 명령어 처리"""
     room = data.get("room")
     message = data.get("message", "")
-    username = sid_to_user.get(sid, "Anonymous")
+    username = sid_to_user.get(sid, "Server")
     print(f"Chat message from {username}: {message}")
     game = get_game(room)
     if message.startswith('/'):
@@ -430,7 +526,7 @@ async def process_json_command(sid, room, username, message):
         else:
             responses = []
 
-        print(f"Command result: {responses}")
+        # print(f"Command result: {responses}")
 
         # if RESPONSE에 game_end가 포함되어있다면 게임 종료 및 ROOM 설정, 인원체크 후 카운트다운 조건
         if any(res.get("type") == "game_end" for res in responses):
@@ -439,6 +535,14 @@ async def process_json_command(sid, room, username, message):
                 game_room.is_started = False
                 # del game_room.game_sessions
                 game_rooms[room].countdown_task = asyncio.create_task(start_countdown(room))
+        if any(res.get("type") == "turn_change" for res in responses):
+                # 방에서 턴 타이머 시작
+                game_room = game_rooms.get(room)
+                if game_room and game_room.is_started:
+                    current_player = game.currentPlayer
+                    if current_player:
+                        # 30초 타이머 시작
+                        await game_room.start_turn_timer(current_player, 30)
         # 5) 게임 상태 업데이트
         for res in responses:
             if isinstance(res, dict) and res.get("target") == "all":
@@ -747,8 +851,7 @@ async def quick_match(sid, data):
     
     if not matching_rooms:
         # 매칭 실패시 새 방 생성
-        await create_room(sid, {
-            "requestId": requestID,
+        await create_room(sid, {"requestId":requestID,
             "max_players": max_players,
             "is_public": True,
             "card_helper": card_helper
@@ -859,15 +962,10 @@ async def start_countdown(room_id: str, seconds: int = 5):
         print(f"방 {room_id} - 카운트다운 종료, 게임 시작")
         game = get_game(room_id)
         print(game)
-        if game.startGame():
-            res = {
-                "type": "game_started","data": {
-                    "players": list(game.players.keys()),}
-            }
-            await broadcast(room_id, "game_update", res)
-            await chat("server", {"room": room_id, "message": '{"type": "roundStart", "data": {}}'})
-            
-            
+        await process_json_command("server", room_id, "server", '{"type": "roundStart", "data": {}}')
+
+        await chat("server", {"room": room_id, "message": '라운드가 시작되었습니다.'})
+
         print(f"방 {room_id} - 자동 게임 시작 ({len(room.players)}/{room.max_players}명)")
 
 

@@ -62,22 +62,20 @@ class Game:
 
     def action(self, player, action):
         # 플레이어가 행동을 수행
-        if action == "roundStart":
+        print(f"action : {action} by {player}")
+        if action["type"] == "roundStart":
             print("게임 시작")
             # 게임 시작
             self.roundStart()
             for name,player in self.players.items():
                 hand = [(card.num,card.flip==True) for card in player.hand]
-                self.tasks.append({"player":"server","target":name,"type":"roundStart","data":{"hand":hand,"role":player.role,"currnetRound":self.currentRound}})
+                self.tasks.append({"player":"server","target":name,"type":"roundStart","data":{}})
             self.tasks.append({"player":"server","target":"all","type":"turn_change","data":self.currentPlayer})
-            if self.currentRound == 1:
-                print("라운드 1이 시작됩니다.")
-                response = self.tasks.copy()
-                self.tasks.clear()
-                return response
-            else:
-                print("게임이 시작되었습니다.")
-                return None
+            print(f"라운드 {self.currentRound}이 시작됩니다.")
+            print(self.tasks)
+            response = self.tasks.copy()
+            self.tasks.clear()
+            return response
         # debug
         if action["type"] == "hand":
             data = {"hand":['\n'.join(''.join(r) for r in self.players[player].hand[0].map)]}
@@ -87,8 +85,21 @@ class Game:
 
         elif action["type"] == "playerState":
             data = self.getPlayerState(player)
+            ###디버깅용
+            board = self.board.showBoard()
+            hand = self.players[player].hand
+            strHand = [" ".join(["".join(hand[cardindex].map[i]) for cardindex in range(len(hand))]) for i in range(5)]
+            hands = [f"현재플레이어 : {self.currentPlayer}   |   내 역할 : {self.players[player].role}   |   잔여덱 : {len(self.cards)}   |   현재 라운드: {self.currentRound}"]+[" ".join([f"   {cardindex}   " for cardindex in range(len(hand))])]+strHand
+            return {"player":"server","target":player,"type":"playerState","data":data,"board":board,"hand":hands}
+            #####
             return {"player":"server","target":player,"type":"playerState","data":data}
+
+
             
+        elif action == "endTime":
+            self.tasks.append({"player":"server","target":"all","type":"endTime","data":{}})
+            # 임이의 카드 discard
+            return self.action(player,{"type":"discard","data":{"handNum":0}})
 
 
 
@@ -199,9 +210,10 @@ class Game:
         # print(checkEnd)
         end = checkEnd[0]
         endType = checkEnd[1]
+        print(f"end : {end}, endType : {endType}, checkNoneCard : {checkNoneCard}")
+        print("len(self.cards) : ",len(self.cards))
+        print("[player.hand for player in self.players.values()] : ",[player.hand for player in self.players.values()])
         if end or checkNoneCard:
-        
-
             if endType == "rock":
                 endPosition =checkEnd[2]
                 # 돌 찾기 성공

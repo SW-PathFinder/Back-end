@@ -203,8 +203,10 @@ class Board:
             for line_idx in range(num_lines):
                 line_parts = [cell_lines[line_idx] for cell_lines in cells_lines]
                 # print(" ".join(line_parts))  # 각 셀 사이에 공백 추가
-                resultText += " ".join(line_parts[:14]) + "<bar>"
+                if len(set(line_parts[:14]))>1:
+                    resultText += " ".join(line_parts[:14]) + "<bar>"
         # print(resultText)
+
         return resultText
 def emptyVerification(board,x,y):
     # print(board[x][y].num)

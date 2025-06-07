@@ -63,13 +63,10 @@ class Game:
             response = self.tasks.copy()
             self.tasks.clear()
             return response
-        print(action,type(action))
-        # print(action.__dict__)
+        
 
 
-
-
-        ## 디버깅용
+        
         if action == "playerState":
             print(f"{player}의 상태 요청")
             if player in self.players:
@@ -157,7 +154,9 @@ class Game:
             print(f"{player}가 {beforePlayer}에게서 카드를 가져왔습니다: {card}")
         elif action == "turnChange":
             self._nextTurn()
+            
         elif action == "endTime":
+            self.tasks.append({"player":"server","target":"all","type":"endTime","data":{}})
             self._nextTurn()
 
         response = self.tasks.copy()
