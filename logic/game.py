@@ -122,16 +122,11 @@ class Game:
                 self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
             # 응답 반환
             print("EndTime이 완료되었습니다.")
-            response = self.tasks.copy()
-            print(response)
-            self.tasks.clear()
-            return response
-            
 
 
 
         # player action
-        if player == self.currentPlayer:
+        elif player == self.currentPlayer:
             # 행동 수행
             print("action : ",action)
 
@@ -254,6 +249,7 @@ class Game:
                 # 금 배분
                 for player in self.players:
                     if self.players[player].role == "worker" and winner == "worker":
+                        # N장 중 가장 큰 숫자부터 순서 역방향으로 배분해주기
                         gold = self.goldCard.pop(0) if len(self.goldCard) > 0 else 0
                         self.players[player].addGold(gold)
                         print(f"{player}에게 {gold} 금이 배분되었습니다.")
