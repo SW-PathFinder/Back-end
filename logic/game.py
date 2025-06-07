@@ -96,10 +96,37 @@ class Game:
 
 
             
-        elif action == "endTime":
+        elif action["type"] == "endTime":
+            print("EndTime이 실행되었습니다. ")
             self.tasks.append({"player":"server","target":"all","type":"endTime","data":{}})
-            # 임이의 카드 discard
-            return self.action(player,{"type":"discard","data":{"handNum":0}})
+            print(1)
+            result = self.players[self.currentPlayer].discard(handNum=0)
+            print(2)
+            if result:
+                print(3)
+                # 카드 버리기 성공
+                self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":0}})
+                print(4)
+                result = self._drawCard()
+                print(5)
+                if result[0]:
+                    print(6)
+                    self.tasks.append({"player":self.currentPlayer,"target":player,"type":"drawCard","data":{"card":result[1].num}})
+                else:
+                    print(7)
+                    self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
+                print(8)
+                self._nextTrun()
+            else:
+                print(9)
+                self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
+            # 응답 반환
+            print("EndTime이 완료되었습니다.")
+            response = self.tasks.copy()
+            print(response)
+            self.tasks.clear()
+            return response
+            
 
 
 

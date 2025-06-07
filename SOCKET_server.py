@@ -29,6 +29,8 @@ from logic.card import Card
 # ─────────────────────────  전역 상수 ─────────────────────────
 MINPLAYERCOUNT = 3  # 최소 플레이어 수
 MAXPLAYERCOUNT = 10  # 최대 플레이어 수
+TURN_TIMER_DURATION = 30  # 기본 턴 타이머 시간 (초)
+
 # ─────────────────────────  전역 저장소 ────────────────────────
 game_sessions: Dict[str, Game] = {}   # room_name → Game 인스턴스
 sid_to_user: Dict[str, str] = {}      # sid → username
@@ -52,7 +54,7 @@ class GameRoom:
         # ───────────────────────── 턴타이머 ────────────────────
         self.turn_timer_task = None         # 턴 타이머 태스크 참조
         self.current_turn_player = None     # 현재 턴 플레이어
-        self.turn_timer_duration = 30       # 턴 타이머 시간 (초)
+        self.turn_timer_duration = TURN_TIMER_DURATION       # 턴 타이머 시간 (초)
 
     def to_dict(self):
         """방 정보를 딕셔너리로 변환"""
@@ -131,7 +133,9 @@ class GameRoom:
                     
                     # 게임 로직에서 턴 변경 실행
                     try:
-                        await chat(user_to_sid.get(self.current_turn_player), {"room": self.room_id, "message": '{"type":"endTime"}'})
+                        # await chat(user_to_sid.get(self.current_turn_player), {"room": self.room_id, "message": '{"type":"endTime"}'})
+                        await process_json_command("server", self.room_id, "server", '{"type": "endTime", "data": {}}')
+
                     except Exception as e:
                         print(f"자동 턴 변경 중 오류: {e}")
                         
@@ -386,7 +390,9 @@ async def join_game(sid, data):
         return
     
     # 새로운 플레이어 추가
-    game.addPlayer(player)
+    # 새로운 플레이어 추가
+    if not player == "server":
+        game.addPlayer(player)
     
     # 전체 알림
     print(f"▶ 새 플레이어 참가 알림: room={room}, player={player}")
@@ -511,7 +517,7 @@ async def process_json_command(sid, room, username, message):
     try:
         # 1) JSON 파싱
         command_data = json.loads(message.replace("'", "\""))
-
+        print(f"Processing JSON command: {command_data} from {username}")
         # 2) 게임 액션 실행
         game = get_game(room)
         result = game.action(username, command_data)
@@ -542,7 +548,7 @@ async def process_json_command(sid, room, username, message):
                     current_player = game.currentPlayer
                     if current_player:
                         # 30초 타이머 시작
-                        await game_room.start_turn_timer(current_player, 30)
+                        await game_room.start_turn_timer(current_player, TURN_TIMER_DURATION)
         # 5) 게임 상태 업데이트
         for res in responses:
             if isinstance(res, dict) and res.get("target") == "all":

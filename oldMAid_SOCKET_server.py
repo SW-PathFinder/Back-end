@@ -874,6 +874,8 @@ async def quick_match(sid, data):
 
 
 async def join_room_by_id(sid, username, room_id):
+    if username == "server":
+        await sio.enter_room(sid, room_id)
     """방 ID로 입장 (도우미 함수)"""
     if room_id not in game_rooms:
         return False
