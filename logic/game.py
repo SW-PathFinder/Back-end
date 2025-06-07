@@ -69,7 +69,7 @@ class Game:
             self.roundStart()
             for name,player in self.players.items():
                 hand = [(card.num,card.flip==True) for card in player.hand]
-                self.tasks.append({"player":"server","target":name,"type":"roundStart","data":{}})
+                self.tasks.append({"player":"server","target":name,"type":"roundStart","data":{"hand":hand,"role":player.role,"currentRound":self.currentRound}})
             self.tasks.append({"player":"server","target":"all","type":"turn_change","data":self.currentPlayer})
             print(f"라운드 {self.currentRound}이 시작됩니다.")
             print(self.tasks)
