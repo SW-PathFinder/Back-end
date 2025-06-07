@@ -780,6 +780,7 @@ async def quick_match(sid, data):
     if not matching_rooms:
         # 매칭 실패시 새 방 생성
         await create_room(sid, {
+            "requestId": requestID,
             "max_players": max_players,
             "is_public": True,
             "card_helper": card_helper
