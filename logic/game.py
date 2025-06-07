@@ -56,7 +56,14 @@ class Game:
             # print(f"{player.name} : {player.role} | {player.hand}")
         # print([(player.role, player.name, player.hand) for player in self.players.values()])
         # self.currentRound +=1
-
+        if self.currentRound == 1:
+            print("라운드 1이 시작됩니다.")
+            response = self.tasks.copy()
+            self.tasks.clear()
+            return response
+        else:
+            print("게임이 시작되었습니다.")
+            return None
         return {"type":"status","data":self}
     
 
@@ -279,9 +286,7 @@ class Game:
                     self.tasks.append({"player":self.currentPlayer,"target":"all","type":"game_end","data":{"rank":golds}})
                 else:
                     print("라운드가 종료되었습니다.")
-
-
-                    self.action("all","roundStart")
+                    self.tasks += self.action("all",{"type":"roundStart"})
                     print("다음 라운드로 넘어갑니다.")
         response = self.tasks.copy()
         self.tasks.clear()
