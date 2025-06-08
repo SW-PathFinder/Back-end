@@ -466,61 +466,63 @@
         log(`⚠️ 서버 연결 중 오류 발생: ${error.message}`);
         usernameError.textContent = '서버 연결 중 오류가 발생했습니다.';
       }
-    };    function setupSocketEvents() {
+    };    
+    function setupSocketEvents() {
+    //socket.on에서 data.room이 현재 방 ID와 일치하는지 확인 후 일치하지 않으면 패스
+      
       // 게임 관련 이벤트
       socket.on('player_joined', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
         log(`[참가] ${data.player}님이 방에 참가했습니다.`);
         roomInfo.textContent = `방: ${data.room} (${data.player_count}명)`;
       });
       
       // 플레이어 퇴장 이벤트
       socket.on('player_left', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
         log(`[퇴장] ${data.player}님이 방에서 나갔습니다.`);
         roomInfo.textContent = `방: ${data.room} (${data.player_count}명)`;
       });
       
       // 방장 변경 이벤트
       socket.on('host_changed', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
         log(`[알림] ${data.new_host}님이 새로운 방장이 되었습니다.`);
       });
       
       // 카운트다운 이벤트
       socket.on('countdown_started', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
         log(`[공지] 방이 가득 찼습니다! ${data.seconds}초 후에 게임이 자동으로 시작됩니다.`);
       });
       
       socket.on('countdown_tick', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
         log(`[카운트다운] 게임 시작까지 ${data.seconds_left}초...`);
       });
       
       socket.on('game_started', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
         log(`[게임 시작] 게임이 시작되었습니다. 참가자: ${data.data.players.join(', ')}`);
       });
 
       socket.on('game_update', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
         privateLog(`[게임 업데이트] ${JSON.stringify(data)}`);
       });      
       
-      socket.on('private_game_update', (data) => {
+      socket.on('private_game_update', (data,room) => {
         // 만약 data.type === 'board_info'라면
-        // console.log("private_game_update 이벤트 발생:", data);
+        console.log("private_game_update 이벤트 발생:", data);
+        console.log("private_game_update 이벤트 발생, room:", data.room);
+        console.log("private_game_update 이벤트 발생, roomId:", roomId);
+        if (data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
           if (data.type != 'playerState' && data.type != 'gameState') {
             privateLog(`[비공개 업데이트] ${JSON.stringify(data)}`);
           }
           if (data.type === 'gameState') {
             // console.log("게임 상태 업데이트:", data.data);
             const gameData = data.data;
-            const privateViewer = document.getElementById('privateMessageViewer1');
-            privateViewer.textContent = ''; // 기존 내용 초기화
-
-            // <bar> 태그가 포함되어 있는 경우 줄바꿈 처리
-            if (typeof data.boardMap === 'string' && data.boardMap.includes('<bar>')) {
-              const lines = data.boardMap.split('<bar>');
-              lines.forEach((line, index) => {
-                if (index > 0) privateViewer.textContent += '\n';
-                privateViewer.textContent += line;
-              });
-            } 
             // 1. 게임 정보 표시
             renderGameInfo(gameData);
             
@@ -538,6 +540,7 @@
       )
       // 채팅 이벤트
       socket.on('chat', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
         log(`[채팅] ${data.username}: ${data.message}`);
       });
 
@@ -555,7 +558,10 @@
       // 연결 해제 이벤트
       socket.on('disconnect', (reason) => {
         log(`[연결 해제] 서버와 연결이 끊어졌습니다. 이유: ${reason}`);
-      });    }        document.getElementById('btnSendChat').addEventListener('click', () => {
+      });    }        
+      
+      
+      document.getElementById('btnSendChat').addEventListener('click', () => {
       const room = roomId;  // URL에서 가져온 방 ID 사용
       const msg = document.getElementById('chatMessage').value.trim();
       if (!room) {

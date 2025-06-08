@@ -180,7 +180,11 @@
     let username = null;
     let isUsernameSet = false;
     let roomId = null;
-    
+    let boardViewState = {
+          currentX: null,
+          currentY: null,
+          scale: 1
+        };
     const logEl = document.getElementById('log');
     const userInput = document.getElementById('userInput');
     const btnSetUsername = document.getElementById('btnSetUsername');
@@ -432,6 +436,43 @@
 
       socket.on('game_update', (data) => {
         log(`[게임 업데이트] ${JSON.stringify(data)}`);
+        
+            switch (data.type) {
+              case "path":
+                // showToast(`경로 카드가 배치되었습니다: ${data.data.x}, ${data.data.y}`, 'info');
+                showToast(`${data.player}님이 경로 카드를 배치했습니다: (${data.data.x}, ${data.data.y})`, 'info');
+                break;
+              case "rockFail":
+                showToast(`${data.player}님이 돌을 파괴했습니다: ${data.data.x}, ${data.data.y}`, 'info');
+                break;
+              case "sabotage":
+                showToast(`${data.player}님이 ${data.data.target}님을 방해했습니다. 방해 유형: ${data.data.cardType}`, 'info');
+                break;
+              case "repair":
+                showToast(`${data.player}님이 ${data.data.target}님을 수리했습니다. 수리 도구: ${data.data.cardType}`, 'info');
+                break;
+              case "viewMap":
+                // x == 10 => 중간 목적지 카드를/ x==12 ==> 상단 목적지 카드를, x==8 ==> 하단 목적지 카드를 확인했습니다.
+                if (data.data.target[0] === 10) {
+                  showToast(`${data.player}님이 중간 목적지 카드를 확인했습니다.`, 'info');
+                } else if (data.data.target[0] === 12) {
+                  showToast(`${data.player}님이 하단 목적지 카드를 확인했습니다.`, 'info');
+                } else if (data.data.target[0] === 8) {
+                  showToast(`${data.player}님이 상단 목적지 카드를 확인했습니다.`, 'info');
+                } else {
+                  showToast(`${data.player}님이 지도 카드를 확인했습니다: (${data.data.x}, ${data.data.y})`, 'info');
+                }
+                break;
+              case "discard":
+                showToast(`${data.player}님이 ${data.data.handNum}번째 카드를 버렸습니다. `,'info');
+                break;
+              case "endTime":
+                showToast(`${data.player}님의 시간이 초과되었습니다. 자동으로 카드를 버립니다.`, 'info');
+                break;
+              case "turn_change":
+                showToast(`${data.data}님의 차례입니다.`, 'info');
+                break;
+            }
       });      
       
       socket.on('private_game_update', (data) => {
@@ -439,6 +480,50 @@
         console.log("private_game_update 이벤트 발생:", data);
           if (data.type != 'playerState') {
             log(`[비공개 업데이트] ${JSON.stringify(data)}`);
+            log(data.data.card);
+            // 현재 플레이어 오는 이벤트
+            switch (data.type) {
+              case 'drawCard':
+                showToast(`[카드 드로우] ${data.player}님이 카드를 드로우했습니다.`,"info");
+                break;
+              case 'revealDest':
+                if (data.data.x === 10) {
+                    showToast(`[지도 보기] 중간 목적지 카드는 '${data.data.cardType === -7 ? '금' : '돌'}' 카드입니다.`,"info");
+                  } else if (data.data.x === 12) {
+                    showToast(`[지도 보기] 하단 목적지 카드는 '${data.data.cardType === -7 ? '금' : '돌'}' 카드입니다.`,"info");
+                  } else if (data.data.x === 8) {
+                    showToast(`[지도 보기] 상단 목적지 카드는 '${data.data.cardType === -7 ? '금' : '돌'}' 카드입니다.`,"info");
+                  } else {
+                    showToast(`[지도 보기] ${data.player}님이 지도 카드를 확인했습니다: (${data.data.x}, ${data.data.y})`);
+                  }
+              case 'roundStart':
+                showToast(`[라운드 시작] ${data.data.round}번째 라운드가 시작되었습니다.`, 'info');
+                break;
+              case 'round_end':
+                showToast(`[라운드 종료] ${data.data.winner}가 승리하였습니다.`, 'info');
+                // {player:self.players[player].role for player in self.players}
+                showToast(`[플레이어 역할] ${data.data.roles.map(([player, role]) => `${player}: ${role}`).join(', ')}`, 'info');
+                break;
+              case 'getGold':
+                showToast(`[금 획득] ${data.player}님이 ${data.data.gold}개의 금을 획득했습니다.`, 'info');
+                break;
+              case 'game_end':
+                socket.emit("playerState", { room: roomId, player: username });
+                const rank = Object.entries(data.data.rank)
+                  .map(([player, gold]) => `${player}: ${gold}골드`)
+                  .join(', ');
+                  console.log("게임 종료 데이터:", data.data);
+                  console.log(`[게임 종료] 게임이 종료되었습니다. 최종 순위: ${rank}`);
+                showToast(`[게임 종료] 게임이 종료되었습니다. 최종 순위: ${rank}`, 'info');
+                // 
+                break;
+              
+              default:
+                log(`[알림] 비공식 업데이트: ${data.type}`);
+            }
+
+
+
           }
           if (data.type === 'playerState') {
             console.log("private_game_update 이벤트에서 data.board:", data.board);
@@ -453,19 +538,8 @@
             
             // 토스트 알림으로 오류 메시지 표시
             showToast(errorMsg, 'error');
- 
-
-
-
-
-
 
           }
-        
-        // 로그에 메시지 기록
-        // log(`[비공개 업데이트] ${JSON.stringify(data)}`);
-        
-        // 개인 메시지 뷰어에 데이터 표시
         
       });
 
@@ -939,58 +1013,75 @@
 
     // 게임 보드 표시 함수
   function renderGameBoard(gameData) {
-  // 보드 내용 비교를 위해 JSON 문자열로 변환하여 비교
-  const boardStr = JSON.stringify(gameData.board);
-  const prevBoardStr = JSON.stringify(GameBoardInfo);
-  
-  if (prevBoardStr === boardStr) {
-    console.log("게임 보드 정보가 변경되지 않았습니다. 업데이트를 건너뜁니다.");
-    return; // 게임 보드 정보가 변경되지 않았으면 업데이트하지 않음
-  }
-  
-  console.log("게임 보드 정보가 업데이트되었습니다.");
-  // 깊은 복사를 통해 보드 정보 저장 (참조 복사가 아닌)
-  console.log(gameData.board)
-  GameBoardInfo = JSON.parse(JSON.stringify(gameData.board));
-  
-  const boardContainer = document.getElementById('privateMessageViewer');
-  boardContainer.innerHTML = '';
-  
-  // 외부 컨테이너 생성 (드래그 영역을 제한하기 위한 컨테이너)
-  const outerContainer = document.createElement('div');
-  outerContainer.style.position = 'relative';
-  outerContainer.style.width = '100%';
-  outerContainer.style.height = '800px';
-  outerContainer.style.overflow = 'hidden';
-  
-  // 드래그 가능한 보드 컨테이너 생성
-  const dragContainer = document.createElement('div');
-  dragContainer.style.position = 'absolute';
-  dragContainer.style.cursor = 'move';
-  dragContainer.id = 'draggableBoard';
-  
-  // 보드 그리드 컨테이너 생성
-  const gridContainer = document.createElement('div');
-  gridContainer.style.display = 'grid';
-  gridContainer.style.gridTemplateColumns = 'repeat(22, 80px)';
-  gridContainer.style.gridTemplateRows = 'repeat(22, 120px)';
-  gridContainer.style.gap = '2px';
-  
-  // 보드 배열 생성 (22x22)
-  const boardArray = Array(22).fill().map(() => Array(22).fill(null));
-  
-  // 보드 데이터를 배열에 매핑
-  gameData.board.forEach(cell => {
-    boardArray[cell.x][cell.y] = cell;
-  });
-  
-  // 그리드 셀 생성
-  for (let x = 0; x < 22; x++) {
-    for (let y = 0; y < 22; y++) {
+    // 보드 내용 비교를 위해 JSON 문자열로 변환하여 비교
+    const boardStr = JSON.stringify(gameData.board);
+    const prevBoardStr = JSON.stringify(GameBoardInfo);
+    
+    if (prevBoardStr === boardStr) {
+      console.log("게임 보드 정보가 변경되지 않았습니다. 업데이트를 건너뜁니다.");
+      return; // 게임 보드 정보가 변경되지 않았으면 업데이트하지 않음
+    }
+    
+    console.log("게임 보드 정보가 업데이트되었습니다.");
+    // 깊은 복사를 통해 보드 정보 저장 (참조 복사가 아닌)
+    GameBoardInfo = JSON.parse(JSON.stringify(gameData.board));
+    
+    const boardContainer = document.getElementById('privateMessageViewer');
+    
+    // 현재 드래그 컨테이너의 위치 정보 저장
+    const currentDragContainer = document.getElementById('draggableBoard');
+    if (currentDragContainer) {
+      const transform = currentDragContainer.style.transform;
+      if (transform) {
+        // translate(Xpx, Ypx) scale(Z) 형식에서 값 추출
+        const translateMatch = transform.match(/translate\((-?\d+(\.\d+)?)px,\s*(-?\d+(\.\d+)?)px\)/);
+        const scaleMatch = transform.match(/scale\((\d+(\.\d+)?)\)/);
+        
+        if (translateMatch) {
+          boardViewState.currentX = parseFloat(translateMatch[1]);
+          boardViewState.currentY = parseFloat(translateMatch[3]);
+        }
+        
+        if (scaleMatch) {
+          boardViewState.scale = parseFloat(scaleMatch[1]);
+        }
+      }
+    }
+    
+    boardContainer.innerHTML = '';
+    
+    // 외부 컨테이너 생성
+    const outerContainer = document.createElement('div');
+    outerContainer.style.position = 'relative';
+    outerContainer.style.width = '100%';
+    outerContainer.style.height = '800px';
+    outerContainer.style.overflow = 'hidden';
+    
+    // 드래그 가능한 보드 컨테이너 생성
+    const dragContainer = document.createElement('div');
+    dragContainer.style.position = 'absolute';
+    dragContainer.style.cursor = 'move';
+    dragContainer.id = 'draggableBoard';
+    
+    // 보드 그리드 컨테이너 생성
+    const gridContainer = document.createElement('div');
+    gridContainer.style.display = 'grid';
+    gridContainer.style.gridTemplateColumns = 'repeat(22, 80px)';
+    gridContainer.style.gridTemplateRows = 'repeat(22, 120px)';
+    gridContainer.style.gap = '2px';
+    
+    // 보드 배열 생성 (22x22)
+    const boardArray = Array(22).fill().map(() => Array(22).fill(null));
+    
+    // 보드 데이터를 배열에 매핑
+    gameData.board.forEach(cell => {
+      boardArray[cell.x][cell.y] = cell;
+    });
+    
+    // 그리드 셀 생성 (기존 코드와 동일)
+    for (let x = 0; x < 22; x++) {
+      for (let y = 0; y < 22; y++) {
       const cell = document.createElement('div');
-
-
-
       cell.classList.add('board-cell');
       cell.dataset.x = x;
       cell.dataset.y = y;
@@ -1114,15 +1205,17 @@
   boardContainer.appendChild(outerContainer);
   
   // 드래그 기능 추가
-  setupDraggableBoard(dragContainer);
+  // 드래그 기능 설정 및 이전 시점 복원
+  setupDraggableBoard(dragContainer, boardViewState);
 }
 
-// 보드 드래그 기능 설정
-function setupDraggableBoard(element) {
+// 보드 드래그 기능 수정
+function setupDraggableBoard(element, viewState = null) {
   let isDragging = false;
   let startX, startY;
   let initialX = 0, initialY = 0;
   let currentX = 0, currentY = 0;
+  let scale = 1; // 확대/축소 비율
   
   // 정확한 보드 크기 계산 (80px x 120px 셀 크기 기준)
   const cellSize = 80;
@@ -1135,9 +1228,16 @@ function setupDraggableBoard(element) {
   const parentWidth = element.parentElement.offsetWidth;
   const parentHeight = element.parentElement.offsetHeight;
   
-  // 초기 위치 설정 - 중앙 정렬
-  currentX = (parentWidth - boardWidth) / 2;
-  currentY = (parentHeight - boardHeight) / 2;
+  // 이전 시점 정보가 있으면 복원, 없으면 초기화
+  if (viewState && viewState.currentX !== null) {
+    currentX = viewState.currentX;
+    currentY = viewState.currentY;
+    scale = viewState.scale || 1;
+  } else {
+    // 초기 위치 설정 - 중앙 정렬
+    currentX = (parentWidth - boardWidth) / 2;
+    currentY = (parentHeight - boardHeight) / 2;
+  }
   
   updatePosition();
   
@@ -1207,12 +1307,42 @@ function setupDraggableBoard(element) {
   }
   
   // 위치 업데이트
+  // 위치 업데이트 함수 수정
   function updatePosition() {
-    element.style.transform = `translate(${currentX}px, ${currentY}px)`;
+    // 확대/축소가 추가된 트랜스폼
+    element.style.transform = `translate(${currentX}px, ${currentY}px) scale(${scale})`;
+    element.style.transformOrigin = 'top left';
+    
+    // 전역 상태 업데이트
+    boardViewState.currentX = currentX;
+    boardViewState.currentY = currentY;
+    boardViewState.scale = scale;
   }
+  
+  // 휠 이벤트 리스너 추가 (확대/축소 기능)
+  element.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    
+    const zoomIntensity = 0.1;
+    const wheel = e.deltaY < 0 ? 1 : -1;
+    const zoom = Math.exp(wheel * zoomIntensity);
+    
+    // 확대/축소 제한 (0.5~2.0 배율로 제한)
+    const newScale = Math.min(Math.max(scale * zoom, 0.5), 2.0);
+    
+    // 마우스 위치를 기준으로 확대/축소
+    const rect = element.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // 새 위치 계산 (마우스 위치를 기준으로 확대/축소)
+    currentX = mouseX - (mouseX - currentX) * newScale / scale;
+    currentY = mouseY - (mouseY - currentY) * newScale / scale;
+    
+    scale = newScale;
+    updatePosition();
+  });
 }
-
-
 // 토스트 알림 표시 함수
   function showToast(message, type = 'error') {
     // 토스트 컨테이너 요소
@@ -1231,8 +1361,8 @@ function setupDraggableBoard(element) {
     toast.style.transition = 'all 0.3s ease-in-out';
     toast.innerHTML = `
       <div style="display: flex; align-items: center;">
-        <span style="margin-right: 10px; font-size: 70px;">${type === 'error' ? '⚠️' : '✅'}</span>
-        <span style="font-size: 70px;">${message}</span>
+        <span style="margin-right: 10px; font-size: 20px;">${type === 'error' ? '⚠️' : '✅'}</span>
+        <span style="font-size: 20px;">${message}</span>
       </div>
     `;
     

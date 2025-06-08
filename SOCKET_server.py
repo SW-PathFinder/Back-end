@@ -308,9 +308,10 @@ def get_game(room: str) -> Game:
     return game_sessions[room]
 def username_to_room(username: str) -> str:
     """사용자 이름으로 방 찾기"""
-    for room_id, game_room in game_rooms.items():
-        if username in game_room.players:
-            return room_id
+    for room, game in game_sessions.items():
+        if username in game.players:    
+            print(f"Found room {room} for user {username}")      
+            return room
     return None
 
 
@@ -319,7 +320,12 @@ async def broadcast(room: str, event: str, data: Any):
     global response_index
     data["id"] = response_index
     response_index += 1
+    data["room"] = room
+    server_sid = user_to_sid.get("server", None)
     await sio.emit(event, data, room=room)
+    if server_sid:
+        # 서버에게도 전송 (디버깅용)
+        await sio.emit(event, data, to=server_sid)
 
 
 async def send_private(username: str, event: str, data: Any):
@@ -328,13 +334,15 @@ async def send_private(username: str, event: str, data: Any):
     data["id"] = response_index
     response_index += 1
     sid = user_to_sid.get(username)
-    room = username_to_room(username)
     server_sid = user_to_sid.get("server", None)
     if sid:
         await sio.emit(event, data, to=sid)
-    data["room"] = room
+    if username == "server":
+        username=data["player"]
+    data["room"] = username_to_room(username)
     if server_sid:
         # 서버에게도 전송 (디버깅용)
+        print(data)
         await sio.emit(event, data, to=server_sid)
 
 
