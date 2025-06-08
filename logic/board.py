@@ -189,14 +189,20 @@ class Board:
             return False
     
     # debug
-    def showBoard(self):
+    def showBoard(self,server=False):
         rows, cols = self.board.shape
         # 배열의 각 행을 순회합니다.
         resultText = ""
         for r in range(rows):
             # 각 셀의 np.array를 행 단위로 문자열로 변환합니다.
-
-            cells_lines = [ ["".join(row) for row in cell.map] for cell in self.board[r, :] ]
+            if server:
+                cells_lines = [ ["".join(row) for row in cell.map] for cell in self.board[r, :] ]
+            else:
+                cells_lines = [
+                            ["".join(row) for row in Card(-8).map] if cell.num in (-2, -4, -6)
+                            else ["".join(row) for row in cell.map]
+                            for cell in self.board[r, :]
+                            ]
             # 각 셀의 문자열은 동일한 줄 수를 가진다고 가정 (여기서는 5줄)
             num_lines = len(cells_lines[0])
             # 셀의 각 줄을 이어 붙여 한 행의 결과를 만듭니다.

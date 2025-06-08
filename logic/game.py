@@ -1,7 +1,7 @@
 from logic.board import Board
 from logic.player import Player
 from itertools import cycle
-from logic.card import Card
+from logic.card import Card , card_image_mapping
 from typing import Dict, List, Tuple , Any
 import random
 class Game:
@@ -17,7 +17,18 @@ class Game:
         self.currentRound = 0   # 현재 라운드
         self.status = "ready" # 게임 상태: "ready", "playing", "ended"
         pass
-
+    def init(self):
+        self.players = {player: Player(player) for player in self.players}  # 플레이어 이름을 키로 하는 딕셔너리로 변환
+        # self.tasks = []  # 작업 리스트 초기화
+        self.currentPlayer = ""
+        self.currentRound = 0
+        self.status = "ready"
+        self.board = Board(self)  # 보드 객체 초기화
+        self.cards = []
+        self.goldCard = []
+        self.cardIndexes = []
+        self.roles = []  # 플레이어 역할 리스트
+        self.current_index = 0  # 현재 플레이어 인덱스
 
 ##### 대기실 #######
     def addPlayer(self, player:str):
@@ -79,7 +90,6 @@ class Game:
                 self.tasks.append({"player":"server","target":name,"type":"roundStart","data":{"hand":hand,"role":player.role,"currentRound":self.currentRound}})
             self.tasks.append({"player":"server","target":"all","type":"turn_change","data":self.currentPlayer})
             print(f"라운드 {self.currentRound}이 시작됩니다.")
-            print(self.tasks)
             response = self.tasks.copy()
             self.tasks.clear()
             return response
@@ -100,7 +110,18 @@ class Game:
             return {"player":"server","target":player,"type":"playerState","data":data,"board":board,"hand":hands}
             #####
             return {"player":"server","target":player,"type":"playerState","data":data}
-
+        elif action["type"] == "gameState":
+            # 게임 상태 반환
+            data = {
+                "round": self.currentRound,
+                "players": {name: {"name":player.name,"role": player.role, "limit":player.limit,"gold": player.gold, "hand": [{"cardId": card.num,"cardType":card.type, "reverse": card.flip} for card in player.hand]} for name, player in self.players.items()},
+                "currentPlayer": self.currentPlayer,
+                # "boardmap": self.board.showBoard(True),
+                "board": [{"x": x, "y": y, "cardId": self.board.board[x, y].num,"reverse":self.board.board[x, y].flip if self.board.board[x,y].num not in  (-2,-4,-6) else -8 , "reverse": self.board.board[x, y].flip == True} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0],
+                "deck": [card.num for card in self.cards],
+                "goldDeck": self.goldCard
+            }
+            return {"player":"server","target":"server","type":"gameState","data":data}
 
             
         elif action["type"] == "endTime":
@@ -286,6 +307,7 @@ class Game:
                     sorted_golds = sorted(golds.items(), key=lambda x: x[1], reverse=True)
                     print("금 순위:", sorted_golds)
                     self.tasks.append({"player":self.currentPlayer,"target":"all","type":"game_end","data":{"rank":golds}})
+                    self.init()
                 else:
                     print("라운드가 종료되었습니다.")
                     self.tasks += self.action("all",{"type":"roundStart"})

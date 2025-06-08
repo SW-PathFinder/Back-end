@@ -29,8 +29,10 @@ from logic.card import Card
 # ─────────────────────────  전역 상수 ─────────────────────────
 MINPLAYERCOUNT = 3  # 최소 플레이어 수
 MAXPLAYERCOUNT = 10  # 최대 플레이어 수
-TURN_TIMER_DURATION = 30  # 기본 턴 타이머 시간 (초)
-
+TURN_TIMER_DURATION = 5  # 기본 턴 타이머 시간 (초)
+# ─────────────────────────  게임 세팅 ─────────────────────────
+# 잔여 시간 chat 보내기
+SEND_TIME_CHAT = False  # 잔여 시간 알림을 chat으로 보낼지 여부
 # ─────────────────────────  전역 저장소 ────────────────────────
 game_sessions: Dict[str, Game] = {}   # room_name → Game 인스턴스
 sid_to_user: Dict[str, str] = {}      # sid → username
@@ -105,12 +107,7 @@ class GameRoom:
                     return
                     
                 # 10초, 5초, 3초, 2초, 1초일 때만 알림 (너무 많은 알림 방지)
-                if i in [10, 5, 3, 2, 1]:
-                    # await broadcast(self.room_id, "turn_timer_tick", {
-                    #     "current_player": current_player,
-                    #     "seconds_left": i,
-                    #     "message": f"{current_player}님의 턴 - 남은 시간: {i}초"
-                    # })
+                if i in [10, 5, 3, 2, 1] and SEND_TIME_CHAT:
                     await chat("server", {"room": self.room_id, "message": '' + current_player + '님의 턴 - 남은 시간: ' + str(i) + '초'})
                 
                 await asyncio.sleep(1)
@@ -161,7 +158,13 @@ class GameRoom:
 
 
 # 게임방 컬렉션 (room_id → GameRoom)
-game_rooms: Dict[str, GameRoom] = {} 
+game_rooms: Dict[str, GameRoom] = {"PIXJ": GameRoom(
+        room_id="PIXJ",
+        host="asdf",
+        is_public=True,
+        max_players=3, 
+        card_helper=False
+    )} 
 
 # ─────────────────────────  Socket.IO 초기화 ────────────────────
 sio = socketio.AsyncServer(
@@ -174,7 +177,11 @@ sio = socketio.AsyncServer(
 static_files: Dict[str, str] = {
     '/': 'lobby.html',
     '/client.html': 'client.html',
+    '/client-server.html': 'client-server.html',
     '/lobby.html': 'lobby.html',
+    '/openvidu.js': 'openvidu-browser-2.30.0.min.js',
+    '/openvidu_app.js': 'openvidu_app.js',
+    '/assets': 'public', 
 }
 
 
@@ -196,7 +203,40 @@ class StaticApp:
                 await self.socketio_app(scope, receive, send)
                 return
 
-            # 1-2) 정적 파일 서빙 ("/" → client.html)
+            # 1-2) 정적 파일 서빙 ("/assets" → "public" 폴더)
+            if path.startswith('/assets/'):
+                try:
+                    # /assets/ 이후의 경로 추출
+                    rel_path = path[8:]  # "/assets/" 제거
+                    file_path = Path(__file__).parent / 'public' / rel_path
+                    
+                    if file_path.exists() and file_path.is_file():
+                        content = file_path.read_bytes()
+                        
+                        # MIME 타입 결정
+                        content_type = 'application/octet-stream'  # 기본값
+                        if file_path.suffix == '.png':
+                            content_type = 'image/png'
+                        elif file_path.suffix == '.jpg' or file_path.suffix == '.jpeg':
+                            content_type = 'image/jpeg'
+                        
+                        await send({
+                            'type': 'http.response.start',
+                            'status': 200,
+                            'headers': [
+                                (b'content-type', content_type.encode()),
+                            ],
+                        })
+                        await send({
+                            'type': 'http.response.body',
+                            'body': content,
+                        })
+                        return
+                except Exception as e:
+                    print(f"정적 파일 처리 중 오류: {e}")
+                    # 오류 시 404 처리로 넘어감
+
+            # 1-3) 일반 정적 파일 서빙 ("/" → client.html)
             if path in static_files:
                 try:
                     file_path = Path(__file__).parent / static_files[path]
@@ -218,7 +258,7 @@ class StaticApp:
                     # 파일 읽기 중 오류 발생 시 404 처리
                     pass
 
-            # 1-3) 그 외 HTTP 경로 → 404 응답
+            # 1-4) 그 외 HTTP 경로 → 404 응답
             await send({
                 'type': 'http.response.start',
                 'status': 404,
@@ -282,8 +322,13 @@ async def send_private(username: str, event: str, data: Any):
     data["id"] = response_index
     response_index += 1
     sid = user_to_sid.get(username)
+    server_sid = user_to_sid.get("server", None)
     if sid:
         await sio.emit(event, data, to=sid)
+    if server_sid:
+        # 서버에게도 전송 (디버깅용)
+        await sio.emit(event, data, to=server_sid)
+        print(data)
 
 
 def generate_room_code(length: int = 4) -> str:
@@ -323,7 +368,7 @@ async def set_username(sid, data):
         await sio.emit("username_result", {"requestId":requestID,"success": False, "message": "사용자 이름이 비어있습니다."}, to=sid)
         return
     
-    if username in connected_users:
+    if username in connected_users and username != "server":
         await sio.emit("username_result", {"requestId":requestID,"success": False, "message": "이미 사용 중인 사용자 이름입니다."}, to=sid)
         return
     
@@ -394,14 +439,14 @@ async def join_game(sid, data):
     if not player == "server":
         game.addPlayer(player)
     
-    # 전체 알림
-    print(f"▶ 새 플레이어 참가 알림: room={room}, player={player}")
-    await broadcast(room, "player_joined", {'requestId':requestID,
-        "player": player,
-        "players": list(game.players.keys()),
-        "room": room,
-        "player_count": len(game.players) 
-    })
+        # 전체 알림
+        print(f"▶ 새 플레이어 참가 알림: room={room}, player={player}")
+        await broadcast(room, "player_joined", {'requestId':requestID,
+            "player": player,
+            "players": list(game.players.keys()),
+            "room": room,
+            "player_count": len(game.players) 
+        })
 
 
 # @sio.event
@@ -508,10 +553,10 @@ async def chat(sid, data):
                 "username": username,
                 "message": message,
             })
-
-    for player in game.players:
-        await process_json_command(sid, room, player, '{"type": "playerState", "data": {}}')
-
+    # if "남은 시간:" not in message:
+    #     for player in game.players:
+    #         await process_json_command(sid, room, player, '{"type": "playerState", "data": {}}')
+    #         await process_json_command(sid, room, "server", '{"type": "gameState", "data": {}}')
 async def process_json_command(sid, room, username, message):
     """JSON 명령어 처리"""
     try:
@@ -531,10 +576,18 @@ async def process_json_command(sid, room, username, message):
             responses = result
         else:
             responses = []
-
         # print(f"Command result: {responses}")
 
         # if RESPONSE에 game_end가 포함되어있다면 게임 종료 및 ROOM 설정, 인원체크 후 카운트다운 조건
+        # 5) 게임 상태 업데이트
+        for res in responses:
+            if isinstance(res, dict) and res.get("target") == "all":
+                await broadcast(room, "game_update", res)
+            elif isinstance(res, dict):
+                await send_private(res.get("target"), "private_game_update", res)
+            else:
+                print(f"Warning: Invalid response format: {res}")
+        
         if any(res.get("type") == "game_end" for res in responses):
             game_room = game_rooms.get(room)
             if game_room:
@@ -549,15 +602,12 @@ async def process_json_command(sid, room, username, message):
                     if current_player:
                         # 30초 타이머 시작
                         await game_room.start_turn_timer(current_player, TURN_TIMER_DURATION)
-        # 5) 게임 상태 업데이트
-        for res in responses:
-            if isinstance(res, dict) and res.get("target") == "all":
-                await broadcast(room, "game_update", res)
-            elif isinstance(res, dict):
-                await send_private(res.get("target"), "private_game_update", res)
-            else:
-                print(f"Warning: Invalid response format: {res}")
-
+        if command_data.get("type") not in ("playerState", "gameState"):
+            # 플레이어 상태 업데이트
+            for player in game.players:
+                await process_json_command(sid, room, player, '{"type": "playerState", "data": {}}')
+            # 게임 상태 업데이트
+            await process_json_command(sid, room, "server", '{"type": "gameState", "data": {}}')
     except json.JSONDecodeError:
         await send_private(username, "error", {"message": f"잘못된 JSON 형식: {message}"})
     except Exception as e:
@@ -608,7 +658,7 @@ async def process_chat_command(sid, room, username, message):
                 role = player.role
                 hands = [" ".join(["".join(hand_cards[i].map[j]) for i in range(len(hand_cards))]) for j in range(5)]
                 limits = str(player.limit)[1:-1]
-                print  ([f"내 역할 : {role}   |   현재플레이어 : {current_player}"],[" ".join(f"   {j}   " for j in range(len(hand_cards)))],hands,[limits])
+                # print  ([f"내 역할 : {role}   |   현재플레이어 : {current_player}"],[" ".join(f"   {j}   " for j in range(len(hand_cards)))],hands,[limits])
                 hands = [f"내 역할 : {role}   |   현재플레이어 : {current_player}"]+[" ".join(f"   {j}   " for j in range(len(hand_cards)))]+hands+[limits]
                 responses = {
                     "type": "hand_info",
@@ -808,7 +858,7 @@ async def search_room_by_code(sid, data):
     room = game_rooms[room_code]
     
     # 이미 시작된 방인지 확인
-    if room.is_started:
+    if room.is_started and username!="server":
         await sio.emit("room_search_result", {"requestId":requestID,
             "success": False,
             "message": "이미 게임이 시작된 방입니다."
@@ -816,7 +866,7 @@ async def search_room_by_code(sid, data):
         return
     
     # 방 인원 초과 여부 확인
-    if len(room.players) >= room.max_players:
+    if len(room.players) >= room.max_players and username!="server":
         await sio.emit("room_search_result", {"requestId":requestID,
             "success": False,
             "message": "방 인원이 가득 찼습니다."
@@ -881,6 +931,9 @@ async def quick_match(sid, data):
 
 async def join_room_by_id(sid, username, room_id):
     """방 ID로 입장 (도우미 함수)"""
+    if  username=="server":
+        await sio.enter_room(sid, room_id)
+        return True
     if room_id not in game_rooms:
         return False
     
@@ -900,7 +953,7 @@ async def join_room_by_id(sid, username, room_id):
     # 해당 방에 대한 게임 인스턴스에 플레이어 추가
     game = get_game(room_id)
     game.addPlayer(username)
-    
+        
     # Socket.IO 방에 입장
     await sio.enter_room(sid, room_id)
       # 모든 참가자에게 알림
@@ -967,7 +1020,7 @@ async def start_countdown(room_id: str, seconds: int = 5):
         # 게임 시작
         print(f"방 {room_id} - 카운트다운 종료, 게임 시작")
         game = get_game(room_id)
-        print(game)
+        # print(game)
         if game.startGame():
             res = {
                 "type": "game_started","data": {

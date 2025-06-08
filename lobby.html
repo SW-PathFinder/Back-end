@@ -467,7 +467,13 @@
           console.log('방 검색 성공:', data.room);
           roomCodeModal.hide();
           // 게임 화면으로 이동
-          window.location.href = `client.html?room=${data.room.room_id}`;
+          const savedUsername = localStorage.getItem('username');
+          if (savedUsername ==="server") {
+            window.location.href = `client-server.html?room=${data.room.room_id}`;
+          }
+          else if (savedUsername ==="client") {
+            window.location.href = `client.html?room=${data.room.room_id}`;
+          }
         } else {
           document.getElementById('roomCodeError').textContent = data.message;
         }
