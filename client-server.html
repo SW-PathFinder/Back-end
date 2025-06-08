@@ -180,8 +180,11 @@
           <h3>보드</h3>
           <div id="privateMessageViewer" style="height: 800px; border: 1px solid #ddd; padding: 10px; background: #f8f9fa; border-radius: 5px; white-space: pre;"></div>
         </div>
+        <div id="privateMessageViewer1" style="height: 500px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px; font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace; white-space: pre; font-size: 14px; line-height: 1.6; letter-spacing: 0; font-variant-numeric: tabular-nums;"></div>
       </div>
     </div>
+       
+
     <div class="card">
       <!-- 여기에 index.html 삽입 -->
     
@@ -495,7 +498,7 @@
       });
 
       socket.on('game_update', (data) => {
-        log(`[게임 업데이트] ${JSON.stringify(data)}`);
+        privateLog(`[게임 업데이트] ${JSON.stringify(data)}`);
       });      
       
       socket.on('private_game_update', (data) => {
@@ -507,7 +510,17 @@
           if (data.type === 'gameState') {
             // console.log("게임 상태 업데이트:", data.data);
             const gameData = data.data;
-            
+            const privateViewer = document.getElementById('privateMessageViewer1');
+            privateViewer.textContent = ''; // 기존 내용 초기화
+
+            // <bar> 태그가 포함되어 있는 경우 줄바꿈 처리
+            if (typeof data.boardMap === 'string' && data.boardMap.includes('<bar>')) {
+              const lines = data.boardMap.split('<bar>');
+              lines.forEach((line, index) => {
+                if (index > 0) privateViewer.textContent += '\n';
+                privateViewer.textContent += line;
+              });
+            } 
             // 1. 게임 정보 표시
             renderGameInfo(gameData);
             
@@ -521,46 +534,8 @@
             // log(`[게임 업데이트] 라운드: ${gameData.round}, 현재 플레이어: ${gameData.currentPlayer}`);
             return;
           }
-          // if (data.type === 'playerState') {
-          //   const privateViewer = document.getElementById('privateMessageViewer');
-          //   privateViewer.textContent = ''; // 기존 내용 초기화
-
-          //   // <bar> 태그가 포함되어 있는 경우 줄바꿈 처리
-          //   if (typeof data.board === 'string' && data.board.includes('<bar>')) {
-          //     const lines = data.board.split('<bar>');
-          //     lines.forEach((line, index) => {
-          //       if (index > 0) privateViewer.textContent += '\n';
-          //       privateViewer.textContent += line;
-          //     });
-          //   } else {
-          //     // 문자열이 아닌 경우 JSON 형태로 변환하여 표시
-          //     privateViewer.textContent = typeof data.board === 'string' ? 
-          //       data.board : JSON.stringify(data.board, null, 2);
-          //   }
-
-
-          //   const privateHandViewer = document.getElementById('privateHandViewer');
-          //   privateHandViewer.textContent = ''; // 기존 내용 초기화
-          //   // 개인 핸드 정보 표시
-          //   if (data.hand ) {
-          //     data.hand.forEach((card, index) => {
-          //       if (index > 0) privateHandViewer.textContent += '\n';
-          //       privateHandViewer.textContent += card;
-          //     });
-          //   } else {
-          //     privateHandViewer.textContent = '개인 핸드 정보가 없습니다.';
-          //   }
-          //   return;
-          // }
-        
-        // 로그에 메시지 기록
-        // log(`[비공개 업데이트] ${JSON.stringify(data)}`);
-        
-        // 개인 메시지 뷰어에 데이터 표시
-        
-      });
-
-
+        }
+      )
       // 채팅 이벤트
       socket.on('chat', (data) => {
         log(`[채팅] ${data.username}: ${data.message}`);

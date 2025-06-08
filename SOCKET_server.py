@@ -29,7 +29,7 @@ from logic.card import Card
 # ─────────────────────────  전역 상수 ─────────────────────────
 MINPLAYERCOUNT = 3  # 최소 플레이어 수
 MAXPLAYERCOUNT = 10  # 최대 플레이어 수
-TURN_TIMER_DURATION = 5  # 기본 턴 타이머 시간 (초)
+TURN_TIMER_DURATION = 15  # 기본 턴 타이머 시간 (초)
 # ─────────────────────────  게임 세팅 ─────────────────────────
 # 잔여 시간 chat 보내기
 SEND_TIME_CHAT = False  # 잔여 시간 알림을 chat으로 보낼지 여부
@@ -610,6 +610,8 @@ async def process_json_command(sid, room, username, message):
     except json.JSONDecodeError:
         await send_private(username, "error", {"message": f"잘못된 JSON 형식: {message}"})
     except Exception as e:
+        
+        await send_private(username, "error", {"message": f"명령어 실행 중 오류: {message}"})
         await send_private(username, "error", {"message": f"명령어 실행 중 오류: {str(e)}"})
 
 
@@ -716,7 +718,7 @@ async def process_chat_command(sid, room, username, message):
                             "handNum": handNum
                         }
                     }
-                    await process_json_command(sid, room, username, str(message))
+                    await process_json_command(sid, room, useprivateLogrname, str(message))
                     return
                 except:
                     await send_private(username, "error", {"message": "잘못된 명령어 형식입니다. 예: /sabotage target handNum"})

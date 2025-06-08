@@ -103,11 +103,17 @@ class Game:
         elif action["type"] == "playerState":
             data = self.getPlayerState(player)
             ###디버깅용
-            board = self.board.showBoard()
+            # board = self.board.showBoard()
+            board =  [{"x": x, "y": y, "cardId": self.board.board[x, y].num,"reverse":self.board.board[x, y].flip} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0]
+            players = {name: {"name":p.name,"role": p.role, "limit":p.limit,"gold": p.gold, "hand": [{"cardId": card.num,"cardType":card.type, "reverse": card.flip, "tool":card.tool} if name == player else {"cardId": -8,"cardType":"path", "reverse": False} for card in p.hand]} for name, p in self.players.items()}
+            currentPlayer = self.currentPlayer
+            for card in board:
+                if card["cardId"] in (-2,-4,-6):
+                    card["cardId"] = -8
             hand = self.players[player].hand
             strHand = [" ".join(["".join(hand[cardindex].map[i]) for cardindex in range(len(hand))]) for i in range(5)]
             hands = [f"현재플레이어 : {self.currentPlayer}   |   내 역할 : {self.players[player].role}   |   잔여덱 : {len(self.cards)}   |   현재 라운드: {self.currentRound}"]+[" ".join([f"   {cardindex}   " for cardindex in range(len(hand))])]+strHand
-            return {"player":"server","target":player,"type":"playerState","data":data,"board":board,"hand":hands}
+            return {"player":"server","target":player,"type":"playerState","data":data,"board":board,"hand":hands,"players":players,"currentPlayer":currentPlayer}
             #####
             return {"player":"server","target":player,"type":"playerState","data":data}
         elif action["type"] == "gameState":
@@ -116,7 +122,7 @@ class Game:
                 "round": self.currentRound,
                 "players": {name: {"name":player.name,"role": player.role, "limit":player.limit,"gold": player.gold, "hand": [{"cardId": card.num,"cardType":card.type, "reverse": card.flip} for card in player.hand]} for name, player in self.players.items()},
                 "currentPlayer": self.currentPlayer,
-                # "boardmap": self.board.showBoard(True),
+                "boardmap": self.board.showBoard(True),
                 "board": [{"x": x, "y": y, "cardId": self.board.board[x, y].num,"reverse":self.board.board[x, y].flip if self.board.board[x,y].num not in  (-2,-4,-6) else -8 , "reverse": self.board.board[x, y].flip == True} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0],
                 "deck": [card.num for card in self.cards],
                 "goldDeck": self.goldCard
@@ -149,6 +155,24 @@ class Game:
                 self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
             # 응답 반환
             print("EndTime이 완료되었습니다.")
+        elif action["type"] == "reversePath":
+            # 경로 뒤집기
+            handNum : int = int(action["data"].get("handNum",action["data"]))
+            if len(self.players[player].hand)<handNum+1:
+                self.tasks.append({"player":"server","target":player,"type":"error","data":"손패 번호가 잘못되었습니다."})
+                response = self.tasks.copy()
+                self.tasks.clear()
+                return response
+            card : Card = self.players[player].hand[handNum]
+            if card.type == "path":
+                card.reversePathCard()
+                self.tasks.append({"player":self.currentPlayer,"target":player,"type":"reversePath","data":{"card":card.num}})
+            else:
+                self.tasks.append({"player":"server","target":player,"type":"error","data":"행동카드는 회전이 불가능합니다."})
+           
+            response = self.tasks.copy()
+            self.tasks.clear()
+            return response
 
 
 
@@ -158,7 +182,7 @@ class Game:
             # print("action : ",action)
 
             ############ 손패 검증
-            handNum : int = action["data"]["handNum"]
+            handNum : int = int(action["data"].get("handNum",action["data"]))
             if len(self.players[player].hand)<handNum+1:
                 self.tasks.append({"player":"server","target":player,"type":"error","data":"손패 번호가 잘못되었습니다."})
                 response = self.tasks.copy()
@@ -181,6 +205,12 @@ class Game:
             match action["type"]:
                 case "path": # action = {"type":"path","data":{"x":x,"y":y,"handNum":num0-5}}
                     # 경로 추가
+                    if card.type != "path":
+                        self.tasks.append({"player":"server","target":player,"type":"error","data":"경로 카드는 경로 추가에만 사용할 수 있습니다."})
+                        response = self.tasks.copy()
+                        self.tasks.clear()
+                        return response
+                    
                     result = self.board.addCard(card,x, y)
                     # print("Result : ",result)
                     if result == True:
@@ -192,6 +222,11 @@ class Game:
                         self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
 
                 case "rockFail": # action = {"type":"rockFail","data":{"x":x,"y":y}}
+                    if card.type != "rockFail":
+                        self.tasks.append({"player":"server","target":player,"type":"error","data":"돌 찾기 카드는 돌 찾기에만 사용할 수 있습니다."})
+                        response = self.tasks.copy()
+                        self.tasks.clear()
+                        return response
                     result = self.board.rockFail(x,y)
                     if result == True:
                         # 경로 추가 성공
@@ -202,6 +237,11 @@ class Game:
                         self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
                 case "sabotage": # action = {"type":"saboteur","data":{"player":self.currentPlayer,"target":str,"handNum":int}}
                     # 사보타주 행동
+                    if card.type != "sabotage":
+                        self.tasks.append({"player":"server","target":player,"type":"error","data":"사보타주 카드는 사보타주에만 사용할 수 있습니다."})
+                        response = self.tasks.copy()
+                        self.tasks.clear()
+                        return response
                     result = self.players[target].setLimit(actionType)
                     if result == True:
                         # 사보타주 성공
@@ -211,7 +251,23 @@ class Game:
                     else:
                         self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
                 case "repair": # action = {"type":"repair","data":{"player":self.currentPlayer,"target":str,"handNum":int}}
-                    result = self.players[target].repairLimit(actionType)
+                    if card.type != "repair":
+                        self.tasks.append({"player":"server","target":player,"type":"error","data":"수리 카드는 수리에만 사용할 수 있습니다."})
+                        response = self.tasks.copy()
+                        self.tasks.clear()
+                        return response
+                    tool = action["data"].get("tool",actionType[0])
+                    print("tool : ",tool)
+                    print(action)
+                    print("tool : ",tool)
+                    print(action)
+                    print("tool : ",tool)
+                    print(action)
+                    print("tool : ",tool)
+                    print(action)
+                    print("tool : ",tool)
+                    print(action)
+                    result = self.players[target].repairLimit(actionType,tool)
                     if result[0] == True:
                         # 수리 성공
                         self.tasks.append({"player":self.currentPlayer,"target":"all","type":"repair","data":{"player":self.currentPlayer,"target":target,"cardType":result[1]}})
@@ -220,6 +276,11 @@ class Game:
                     else:
                         self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
                 case "viewMap": # action = {"type":"viewMap","data":{"x":x,"y":y}}
+                    if card.type != "viewMap":
+                        self.tasks.append({"player":"server","target":player,"type":"error","data":"맵 보기 카드는 맵 보기 행동에만 사용할 수 있습니다."})
+                        response = self.tasks.copy()
+                        self.tasks.clear()
+                        return response
                     # 맵 보기
                     result = self.board.viewMap(x,y)
                     if result[0] == True:
@@ -267,6 +328,11 @@ class Game:
                 endPosition =checkEnd[2]
                 # 돌 찾기 성공
                 self.tasks.append({"player":self.currentPlayer,"target":"all","type":"rock_found","data":endPosition})
+                end = self.board.checkEnd()
+                if end[0] == True:
+                    endType = end[1]
+                    endPosition = end[2]
+                    self.tasks.append({"player":self.currentPlayer,"target":"all","type":"round_end","data":{"winner":"saboteur","roles":{player:self.players[player].role for player in self.players}}})
             elif endType == "gold" or checkNoneCard:
                 winner = "worker" if endType == "gold" else "saboteur"
                 # self.tasks.append({"player":self.currentPlayer,"target":"all","type":"gold_found","data":endPosition})
@@ -325,7 +391,9 @@ class Game:
     def _useCard(self, handNum:int):
         if self.players[self.currentPlayer].discard(handNum):
             result = self._drawCard()
-            self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num}})
+            if result[0]:
+                # 카드 뽑기 성공            
+                self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num}})
         else:
             return False, "잘못된 카드 번호입니다."
 
@@ -347,6 +415,10 @@ class Game:
             player.hand = []
         
         random.shuffle(self.cards)
+        for card in self.cards:
+            if card.type == "path":
+                if random.choice([True, False]):
+                    card.reversePathCard()
         
         # 플레이어 수에 따라 카드 분배
         match len(self.players):
@@ -416,7 +488,7 @@ class Game:
                 "round": self.currentRound,
                 "gold": self.players[player].gold,
                 "role": self.players[player].role,
-                "hands": [{"cardId": card.num, "reverse": card.flip==True} for card in self.players[player].hand],
+                "hands": [{"cardId": card.num, "reverse": card.flip==True,"type":card.type} for card in self.players[player].hand],
                 "currentPlayerId": self.currentPlayer,
                 "board": [{"x": x, "y": y, "cardId": self.board.board[x, y].num if self.board.board[x,y].num not in  (-2,-4,-6) else -8 , "reverse": self.board.board[x, y].flip == True} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0],
                 "deckCount": len(self.cards),

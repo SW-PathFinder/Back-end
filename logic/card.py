@@ -9,6 +9,7 @@ class Card:
         self.path = self.Info['info'][:-1]
         self.flip = self.Info['info'][-1] if type(self.Info['info'][-1])==bool else self.Info['info']
         self.info = self.Info.get('info')
+        self.tool = self.Info.get('info', None)  # 도구 정보 (수리/파괴 카드에 사용)
         self.map = self.Info.get('map')
     
     def to_dict(self):
@@ -307,7 +308,7 @@ def getCardType(cardTtype, hint=""):
                     list("|  |  |"),
                     list("┕--┻--┚")
                 ])
-            }
+            } 
         case 12:
             return {
                 "type": "path",

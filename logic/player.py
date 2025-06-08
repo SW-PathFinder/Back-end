@@ -41,16 +41,32 @@ class Player:
             return True
         else:
             return False, "이미 제한된 장비입니다."
-    def repairLimit(self, cardType:list[str]):
-        for card in cardType:
-            if self.limit[card] == True:
-                self.limit[card] = False
-            else:
-                cardType.remove(card)
-        if cardType:
-            return True , cardType
-        else:
-            return False, "수리할 수 있는 장비가 없습니다."
+    def repairLimit(self, cardType:list[str],toolType):
+        print("수리 전")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        print(f"toolType: {toolType}, cardType: {cardType}, limit: {self.limit}")
+        if toolType not in cardType:
+            return False, "수리할 장비가 카드와 일치하지 않습니다."
+        if self.limit[toolType] == True:
+            self.limit[toolType] = False
+            print("수리 후", self.limit)
+            return True, toolType
+        return False, "수리할 수 있는 장비가 없습니다."
 
     def discard(self, handNum:int):
         # 손패에서 카드를 버리는 로직
