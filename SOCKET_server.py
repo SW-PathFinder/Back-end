@@ -415,7 +415,7 @@ async def join_game(sid, data):
     # 현재 사용자의 이름이 아닌 경우 (sid가 일치하지 않음)
     current_username = sid_to_user.get(sid)
     if current_username != player:
-        await sio.emit("error", {"message": "사용자 이름이 일치하지 않습니다."}, to=sid)
+        await sio.emit("error", {"requestId":requestID,"message": "사용자 이름이 일치하지 않습니다."}, to=sid)
         return
 
     # Socket.IO room 입장
@@ -505,7 +505,7 @@ async def game_action(sid, data):
     # 현재 사용자의 이름이 아닌 경우 (sid가 일치하지 않음)
     current_username = sid_to_user.get(sid)
     if current_username != player:
-        await sio.emit("error", {"message": "사용자 이름이 일치하지 않습니다."}, to=sid)
+        await sio.emit("error", {"requestId":requestID,"message": "사용자 이름이 일치하지 않습니다."}, to=sid)
         return
 
     game = get_game(room)
@@ -523,7 +523,7 @@ async def game_action(sid, data):
             responses = []
 
     except Exception as exc:
-        await send_private(player, "error", {"message": str(exc)})
+        await send_private(player, "error", {"requestId":requestID,"message": str(exc)})
         return
 
     # 브로드캐스트 또는 개인 전송
@@ -685,7 +685,7 @@ async def process_chat_command(sid, room, username, message):
                     return
 
             case "playerstate":
-                await process_json_command(sid, room, username, '{"type": "playerState", "data": {}}')
+                # await process_json_command(sid, room, username, '{"type": "playerState", "data": {}}')
                 return
             
             case "path":
@@ -844,7 +844,7 @@ async def search_room_by_code(sid, data):
     username = sid_to_user.get(sid)
     requestID = data.get("requestId","server_response")
     if not username:
-        await sio.emit("error", {"message": "로그인이 필요합니다."}, to=sid)
+        await sio.emit("error", {"requestId":requestID,"message": "로그인이 필요합니다."}, to=sid)
         return
     
     room_code = data.get("room_code")
@@ -1039,6 +1039,7 @@ async def leave_room(sid, data):
     """방 나가기 이벤트 처리"""
     room = data.get("room")
     player = data.get("player")
+    requestID = data.get("requestId","server_response")
     print(f"▶ leave_room event: sid={sid}, room={room}, player={player}")
     
     if not room or not player:
@@ -1048,7 +1049,7 @@ async def leave_room(sid, data):
     # 현재 사용자의 이름이 일치하는지 확인
     current_username = sid_to_user.get(sid)
     if current_username != player:
-        await sio.emit("error", {"message": "사용자 이름이 일치하지 않습니다."}, to=sid)
+        await sio.emit("error", {"requestId":requestID,"message": "사용자 이름이 일치하지 않습니다."}, to=sid)
         return
         
     # 1. Socket.IO room에서 나가기
