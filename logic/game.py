@@ -80,7 +80,7 @@ class Game:
 
     def action(self, player, action):
         # 플레이어가 행동을 수행
-        print(f"action : {action} by {player}")
+        # print(f"action : {action} by {player}")
         if action["type"] == "roundStart":
             print("게임 시작")
             # 게임 시작
@@ -136,19 +136,16 @@ class Game:
                 self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":0}})
                 print(4)
                 result = self._drawCard()
-                print("result : ",result)
-                print(5)
+
                 if result[0]:
-                    print(6)
+
                     self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num}})
                 else:
                     print(7)
                     self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
-                print(self.tasks)
-                print(8)
+
                 self._nextTrun()
             else:
-                print(9)
                 self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
             # 응답 반환
             print("EndTime이 완료되었습니다.")
@@ -158,7 +155,7 @@ class Game:
         # player action
         elif player == self.currentPlayer:
             # 행동 수행
-            print("action : ",action)
+            # print("action : ",action)
 
             ############ 손패 검증
             handNum : int = action["data"]["handNum"]
@@ -188,7 +185,7 @@ class Game:
                     # print("Result : ",result)
                     if result == True:
                         # 경로 추가 성공
-                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"path","data":{"x":x,"y":y,"card":card.num}})
+                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"path","data":{"x":x,"y":y,"card":card.num,"reverse":card.flip}})
                         self._useCard(handNum)
                         self._nextTrun()
                     else:
@@ -264,7 +261,7 @@ class Game:
         endType = checkEnd[1]
         print(f"end : {end}, endType : {endType}, checkNoneCard : {checkNoneCard}")
         print("len(self.cards) : ",len(self.cards))
-        print("[player.hand for player in self.players.values()] : ",[player.hand for player in self.players.values()])
+        # print("[player.hand for player in self.players.values()] : ",[player.hand for player in self.players.values()])
         if end or checkNoneCard:
             if endType == "rock":
                 endPosition =checkEnd[2]

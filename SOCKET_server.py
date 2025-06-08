@@ -328,7 +328,6 @@ async def send_private(username: str, event: str, data: Any):
     if server_sid:
         # 서버에게도 전송 (디버깅용)
         await sio.emit(event, data, to=server_sid)
-        print(data)
 
 
 def generate_room_code(length: int = 4) -> str:
@@ -562,7 +561,7 @@ async def process_json_command(sid, room, username, message):
     try:
         # 1) JSON 파싱
         command_data = json.loads(message.replace("'", "\""))
-        print(f"Processing JSON command: {command_data} from {username}")
+        # print(f"Processing JSON command: {command_data} from {username}")
         # 2) 게임 액션 실행
         game = get_game(room)
         result = game.action(username, command_data)
