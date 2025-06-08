@@ -23,7 +23,7 @@ class Game:
         self.currentPlayer = ""
         self.currentRound = 0
         self.status = "ready"
-        self.board = Board(self)  # 보드 객체 초기화
+        # self.board = Board(self)  # 보드 객체 초기화
         self.cards = []
         self.goldCard = []
         self.cardIndexes = []
@@ -38,6 +38,7 @@ class Game:
         self.players.pop(player)
         pass
     def startGame(self):
+        self.init()
         self._shuffleGoldCard()
         # self.players의 순서를 랜덤으로
         playersKeys = list(self.players.keys())
@@ -85,6 +86,7 @@ class Game:
             # 게임 시작
             self.roundStart()
             for name,player in self.players.items():
+                player.limit = {"mineCart":False,"pickaxe":False,"lantern":False}
                 hand = [(card.num,card.flip==True) for card in player.hand]
                 self.tasks.append({"player":"server","target":name,"type":"roundStart","data":{"hand":hand,"role":player.role,"currentRound":self.currentRound}})
             self.tasks.append({"player":"server","target":"all","type":"turn_change","data":self.currentPlayer})
@@ -126,7 +128,7 @@ class Game:
                 "deck": [card.num for card in self.cards],
                 "goldDeck": self.goldCard
             }
-            return {"player":"server","target":"server","type":"gameState","data":data}
+            return {"player":self.currentPlayer,"target":"server","type":"gameState","data":data}
 
             
         elif action["type"] == "endTime":
@@ -325,29 +327,49 @@ class Game:
                 # self.tasks에서 type이 drawCard,turn_change는 삭제
                 self.tasks = [task for task in self.tasks if task["type"] not in ["drawCard", "turn_change"]]
                 # 금 배분
-                for player in self.players:
-                    if self.players[player].role == "worker" and winner == "worker":
-                        # N장 중 가장 큰 숫자부터 순서 역방향으로 배분해주기
-                        gold = self.goldCard.pop(0) if len(self.goldCard) > 0 else 0
-                        self.players[player].addGold(gold)
-                        print(f"{player}에게 {gold} 금이 배분되었습니다.")
-
-                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"getGold","data":{"gold":gold}})
-                    elif self.players[player].role == "saboteur" and winner == "saboteur":
+                # worker 수 추출
+                workerPlayerCount = len([player for player in self.players if self.players[player].role == "worker"])
+                # worker 승리 골드 분배 로직
+                if winner == "worker":
+                    # currentPlayer을 다시 앞으로 한명 보내기
+                    newPlayers = list(self.players.keys())[::-1]
+                    print(newPlayers)
+                    workers = [player for player in newPlayers if self.players[player].role == "worker"]                    
+                    # worker가 있는 경우 골드 분배
+                    print(f"self.players : {self.players}")
+                    for worker in workers:  # 역순으로 worker에게 배분
+                        if len(self.goldCard) > 0:
+                            # 남은 금 중 가장 큰 것을 배분
+                            MaxGold = max(self.goldCard[-workerPlayerCount:])
+                            MaxGoldIndex = self.goldCard.index(MaxGold, len(self.goldCard) - workerPlayerCount-1)
+                            self.goldCard.pop(MaxGoldIndex)
+                            self.players[worker].addGold(MaxGold)
+                            print(f"{worker}에게 {MaxGold} 금이 배분되었습니다.")
+                            workerPlayerCount -= 1
+                            
+                            print(f"{worker}에게 {MaxGold} 금이 배분되었습니다.")
+                            self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": MaxGold}})
+                elif winner == "saboteur":
+                    # 기존 saboteur 코드는 유지
+                    saboteurs = [player for player in self.players if self.players[player].role == "saboteur"]
+                    
+                    # 각 사보타주어에게 골드 배분
+                    for saboteur in saboteurs:
                         lenPlayer = len(self.players)
-                        # lenplayer의 수가 4이하는 4개, 5이상9명이하는 3개, 10명이상은 2개
                         goldMaximum = 4 if lenPlayer < 5 else 3 if lenPlayer < 10 else 2
-                        currnetGold = 0
-                        # print("goldCard : ",self.goldCard)
+                        currentGold = 0
+                        
+                        # 골드 카드에서 최대치를 넘지 않게 배분
                         for i in range(len(self.goldCard)):
-                            if currnetGold+self.goldCard[i] <= goldMaximum:
+                            if currentGold + self.goldCard[i] <= goldMaximum:
                                 gold = self.goldCard.pop(i)
-                                currnetGold += gold
-                                if currnetGold == goldMaximum:
+                                currentGold += gold
+                                if currentGold == goldMaximum:
                                     break
-                        print(f"{player}에게 {currnetGold} 금이 배분되었습니다.")
-                        self.players[player].addGold(currnetGold)
-                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"getGold","data":{"gold":currnetGold}})
+                        
+                        print(f"{saboteur}에게 {currentGold} 금이 배분되었습니다.")
+                        self.players[saboteur].addGold(currentGold)
+                        self.tasks.append({"player": self.currentPlayer, "target": saboteur, "type": "getGold", "data": {"gold": currentGold}})
                         # 인원에 따라 고
                 if self.currentRound == 3:
                     # 금 개수로 순위 매기기
@@ -355,7 +377,7 @@ class Game:
                     sorted_golds = sorted(golds.items(), key=lambda x: x[1], reverse=True)
                     print("금 순위:", sorted_golds)
                     self.tasks.append({"player":self.currentPlayer,"target":"all","type":"game_end","data":{"rank":golds}})
-                    self.init()
+                    
                 else:
                     print("라운드가 종료되었습니다.")
                     self.tasks += self.action("all",{"type":"roundStart"})
@@ -364,7 +386,13 @@ class Game:
         self.tasks.clear()
         return response
     
+        """
                 
+[게임 업데이트] {"player":"1","target":"all","type":"path","data":{"x":8,"y":12,"card":3,"reverse":false},"id":1456,"room":"PIXJ"}
+[게임 업데이트] {"player":"d","target":"all","type":"round_end","data":{"winner":"worker","roles":{"1":"worker","2":"saboteur","d":"worker"}},"id":1457,"room":"PIXJ"}
+[비공개 업데이트] {"player":"d","target":"1","type":"getGold","data":{"gold":3},"id":1458}
+[게임 업데이트] {"player":"d","target":"all","type":"game_end","data":{"rank":{"1":4,"2":3,"d":3}},"id":1460,"room":"PIXJ"}
+[공지] 방이 가득 찼습니다! 15초 후에 게임이 자동으로 시작됩니다."""
     def _drawCard(self):
         # 카드 뽑기
         if len(self.cards) > 0:
