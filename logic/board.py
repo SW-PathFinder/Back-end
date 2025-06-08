@@ -89,7 +89,9 @@ class Board:
                 newCard.reversePathCard()
             self.board[self.rock[0]] = newCard
             print(f"arrive rock {self.rock[0]}")
-            return True, "rock", self.rock[0]
+            # rockCard = self.rock[0],self.rock[1],self.board[self.rock[0]].num,self.board[self.rock[1]].flip
+            rockCard = {"x":self.rock[0][0],"y":self.rock[0][1],"card":self.board[self.rock[0]].num,"reverse":self.board[self.rock[0]].flip}
+            return True, "rock", rockCard
         elif self.activeHasPath(self.path,self.home,self.rock[1]) and self.board[self.rock[1]].num in (-2,-4): 
             newCard = Card(self.board[self.rock[1]].num-1)
             if self.board[(self.rock[1][0],self.rock[1][1]-1)].num != 0 and 4 in newCard.path :
@@ -104,7 +106,8 @@ class Board:
                 newCard.reversePathCard()
             self.board[self.rock[1]] = newCard
             print(f"arrice rock {self.rock[1]}")
-            return True, "rock", self.rock[1]
+            rockCard = {"x":self.rock[1][0],"y":self.rock[1][1],"card":self.board[self.rock[1]].num,"reverse":self.board[self.rock[1]].flip}
+            return True, "rock", rockCard
         else:
             print("game continue")
             return False, "None"
