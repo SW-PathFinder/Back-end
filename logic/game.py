@@ -75,7 +75,6 @@ class Game:
         else:
             print("게임이 시작되었습니다.")
             return None
-        return {"type":"status","data":self}
     
 
     def action(self, player, action):
@@ -94,26 +93,26 @@ class Game:
             self.tasks.clear()
             return response
         # debug
-        if action["type"] == "hand":
-            data = {"hand":['\n'.join(''.join(r) for r in self.players[player].hand[0].map)]}
-            data = {"hand":[{"num":card.num, "flip":card.flip} for card in self.players[player].hand]}
-            # print(data)
-            return {"player":"server","target":player,"type":"hand","data":data}
+        # if action["type"] == "hand":
+        #     data = {"hand":['\n'.join(''.join(r) for r in self.players[player].hand[0].map)]}
+        #     data = {"hand":[{"num":card.num, "flip":card.flip} for card in self.players[player].hand]}
+        #     # print(data)
+        #     return {"player":"server","target":player,"type":"hand","data":data}
 
         elif action["type"] == "playerState":
             data = self.getPlayerState(player)
             ###디버깅용
             # board = self.board.showBoard()
             board =  [{"x": x, "y": y, "cardId": self.board.board[x, y].num,"reverse":self.board.board[x, y].flip} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0]
-            players = {name: {"name":p.name,"role": p.role, "limit":p.limit,"gold": p.gold, "hand": [{"cardId": card.num,"cardType":card.type, "reverse": card.flip, "tool":card.tool} if name == player else {"cardId": -8,"cardType":"path", "reverse": False} for card in p.hand]} for name, p in self.players.items()}
+            players = {name: {"name":p.name,"role": p.role if player == self.currentPlayer else "?", "limit":p.limit,"gold": p.gold if player == self.currentPlayer else "?", "hand": [{"cardId": card.num,"cardType":card.type, "reverse": card.flip, "tool":card.tool} if name == player else {"cardId": -8,"cardType":"path", "reverse": False} for card in p.hand]} for name, p in self.players.items()}
             currentPlayer = self.currentPlayer
             for card in board:
                 if card["cardId"] in (-2,-4,-6):
                     card["cardId"] = -8
-            hand = self.players[player].hand
-            strHand = [" ".join(["".join(hand[cardindex].map[i]) for cardindex in range(len(hand))]) for i in range(5)]
-            hands = [f"현재플레이어 : {self.currentPlayer}   |   내 역할 : {self.players[player].role}   |   잔여덱 : {len(self.cards)}   |   현재 라운드: {self.currentRound}"]+[" ".join([f"   {cardindex}   " for cardindex in range(len(hand))])]+strHand
-            return {"player":"server","target":player,"type":"playerState","data":data,"board":board,"hand":hands,"players":players,"currentPlayer":currentPlayer}
+            # hand = self.players[player].hand
+            # strHand = [" ".join(["".join(hand[cardindex].map[i]) for cardindex in range(len(hand))]) for i in range(5)]
+            # hands = [f"현재플레이어 : {self.currentPlayer}   |   내 역할 : {self.players[player].role}   |   잔여덱 : {len(self.cards)}   |   현재 라운드: {self.currentRound}"]+[" ".join([f"   {cardindex}   " for cardindex in range(len(hand))])]+strHand
+            return {"player":"server","target":player,"type":"playerState","data":data,"board":board,"players":players,"currentPlayer":currentPlayer}
             #####
             return {"player":"server","target":player,"type":"playerState","data":data}
         elif action["type"] == "gameState":
@@ -122,7 +121,7 @@ class Game:
                 "round": self.currentRound,
                 "players": {name: {"name":player.name,"role": player.role, "limit":player.limit,"gold": player.gold, "hand": [{"cardId": card.num,"cardType":card.type, "reverse": card.flip} for card in player.hand]} for name, player in self.players.items()},
                 "currentPlayer": self.currentPlayer,
-                "boardmap": self.board.showBoard(True),
+                # "boardmap": self.board.showBoard(True),
                 "board": [{"x": x, "y": y, "cardId": self.board.board[x, y].num,"reverse":self.board.board[x, y].flip if self.board.board[x,y].num not in  (-2,-4,-6) else -8 , "reverse": self.board.board[x, y].flip == True} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0],
                 "deck": [card.num for card in self.cards],
                 "goldDeck": self.goldCard
@@ -132,15 +131,11 @@ class Game:
             
         elif action["type"] == "endTime":
             print("EndTime이 실행되었습니다. ")
-            self.tasks.append({"player":"server","target":"all","type":"endTime","data":{}})
-            print(1)
+            self.tasks.append({"player":self.currentPlayer,"target":"all","type":"endTime","data":{}})
             result = self.players[self.currentPlayer].discard(handNum=0)
-            print(2)
             if result:
-                print(3)
                 # 카드 버리기 성공
                 self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":0}})
-                print(4)
                 result = self._drawCard()
 
                 if result[0]:
@@ -245,7 +240,7 @@ class Game:
                     result = self.players[target].setLimit(actionType)
                     if result == True:
                         # 사보타주 성공
-                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"saboteur","data":{"player":self.currentPlayer,"target":target,"cardType":actionType}})
+                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"sabotage","data":{"player":self.currentPlayer,"target":target,"cardType":actionType}})
                         self._useCard(handNum)
                         self._nextTrun()
                     else:
@@ -257,16 +252,6 @@ class Game:
                         self.tasks.clear()
                         return response
                     tool = action["data"].get("tool",actionType[0])
-                    print("tool : ",tool)
-                    print(action)
-                    print("tool : ",tool)
-                    print(action)
-                    print("tool : ",tool)
-                    print(action)
-                    print("tool : ",tool)
-                    print(action)
-                    print("tool : ",tool)
-                    print(action)
                     result = self.players[target].repairLimit(actionType,tool)
                     if result[0] == True:
                         # 수리 성공
