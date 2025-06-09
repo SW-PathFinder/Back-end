@@ -158,13 +158,7 @@ class GameRoom:
 
 
 # 게임방 컬렉션 (room_id → GameRoom)
-game_rooms: Dict[str, GameRoom] = {"PIXJ": GameRoom(
-        room_id="PIXJ",
-        host="asdf",
-        is_public=True,
-        max_players=3, 
-        card_helper=False
-    )} 
+game_rooms: Dict[str, GameRoom] = {} 
 
 # ─────────────────────────  Socket.IO 초기화 ────────────────────
 sio = socketio.AsyncServer(
