@@ -144,7 +144,7 @@ class Game:
                 self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":0}})
                 result = self._drawCard()
                 if result[0]:
-                    self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num}})
+                    self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num, "reverse":result[1].flip}})
                 else:
                     self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
 
@@ -287,7 +287,7 @@ class Game:
                         self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":handNum}})
                         result = self._drawCard()
                         if result[0]:
-                            self.tasks.append({"player":self.currentPlayer,"target":player,"type":"drawCard","data":{"card":result[1].num}})
+                            self.tasks.append({"player":self.currentPlayer,"target":player,"type":"drawCard","data":{"card":result[1].num, "reverse":result[1].flip}})
                         else:
                             self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
                         self._nextTrun()
@@ -413,7 +413,7 @@ class Game:
             result = self._drawCard()
             if result[0]:
                 # 카드 뽑기 성공            
-                self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num}})
+                self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num,"reverse": result[1].flip}})
         else:
             return False, "잘못된 카드 번호입니다."
 
