@@ -315,6 +315,9 @@ def get_game(room: str) -> Game:
     if room not in game_sessions:
         game_sessions[room] = Game()
     return game_sessions[room]
+def get_game_if_exists(room: str) -> Game | None:
+    """방에 대한 Game 인스턴스 확보 (존재하지 않으면 None)"""
+    return game_sessions.get(room)
 def username_to_room(username: str) -> str:
     """사용자 이름으로 방 찾기"""
     for room, game in game_sessions.items():
@@ -427,12 +430,12 @@ async def disconnect(sid):
 @sio.event
 async def join_game(sid, data):
     """기존 게임 참가 로직 (backward compatibility)"""
-    room = data.get("room")
+    room_id = data.get("room")
     player = data.get("player")
     requestID = data.get("requestId","server_response")
-    print(f"▶ join_game event: sid={sid}, room={room}, player={player}")
+    print(f"▶ join_game event: sid={sid}, room={room_id}, player={player}")
     print(f"▶ join_game raw data: {data}")
-    if not room or not player:
+    if not room_id or not player:
         print(f"Invalid join_game data: {data}")
         return
 
@@ -441,16 +444,35 @@ async def join_game(sid, data):
     if current_username != player:
         await sio.emit("error", {"requestId":requestID,"message": "사용자 이름이 일치하지 않습니다."}, to=sid)
         return
+    
+    room = game_rooms.get(room_id)
+    if not room:
+        await sio.emit("error", {"requestId":requestID,"message": f"방 {room_id}이 존재하지 않습니다."}, to=sid)
+        return
+
+    # 이미 방에 참가한 경우에만 재접속 가능
+    if player not in room.players:
+        await sio.emit("error", {"requestId":requestID,"message": f"방 {room_id}에 참가하지 않은 플레이어입니다."}, to=sid)
 
     # Socket.IO room 입장
-    await sio.enter_room(sid, room)
+    await sio.enter_room(sid, room_id)
 
     # 매핑 저장
     sid_to_user[sid] = player
     user_to_sid[player] = sid
-    
+
     # Game 모델에 플레이어 등록 (이미 등록된 경우 무시)
-    game = get_game(room)
+    game = get_game_if_exists(room_id)
+
+    await sio.emit("join_game_result", {"requestId":requestID,
+        "success": True,
+        "room": room.to_dict(),
+        "playerState": game.getPlayerState(player) if game else None,
+    }, to=sid)
+    
+    if not game:
+        print(f"아직 방 {room_id}에 게임 세션이 존재하지 않습니다")
+        return
     
     # 이미 해당 플레이어가 게임에 존재하는지 확인
     if player in game.players:
@@ -459,18 +481,11 @@ async def join_game(sid, data):
         return
     
     # 새로운 플레이어 추가
-    # 새로운 플레이어 추가
     if not player == "server":
         game.addPlayer(player)
-    
-        # 전체 알림
-        print(f"▶ 새 플레이어 참가 알림: room={room}, player={player}")
-        await broadcast(room, "player_joined", {'requestId':requestID,
-            "player": player,
-            "players": list(game.players.keys()),
-            "room": room,
-            "player_count": len(game.players) 
-        })
+        
+        # 게임 상태 동기화를 위한 플레이어 상태 전송
+        await process_json_command(sid, room_id, player, '{"type": "playerState", "data": {}}')
 
 
 # @sio.event
