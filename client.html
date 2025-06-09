@@ -483,9 +483,9 @@
             log(data.data.card);
             // 현재 플레이어 오는 이벤트
             switch (data.type) {
-              case 'drawCard':
-                showToast(`[카드 드로우] ${data.player}님이 카드를 드로우했습니다.`,"info");
-                break;
+              // case 'drawCard':
+              //   showToast(`[카드 드로우] ${data.player}님이 카드를 드로우했습니다.`,"info");
+              //   breakdraw;
               case 'revealDest':
                 if (data.data.x === 10) {
                     showToast(`[지도 보기] 중간 목적지 카드는 '${data.data.cardType === -7 ? '금' : '돌'}' 카드입니다.`,"info");
@@ -505,7 +505,7 @@
                 showToast(`[플레이어 역할] ${data.data.roles.map(([player, role]) => `${player}: ${role}`).join(', ')}`, 'info');
                 break;
               case 'getGold':
-                showToast(`[금 획득] ${data.player}님이 ${data.data.gold}개의 금을 획득했습니다.`, 'info');
+                showToast(`[금 획득] ${username}님이 ${data.data.gold}개의 금을 획득했습니다.`, 'info');
                 break;
               case 'game_end':
                 socket.emit("playerState", { room: roomId, player: username });
@@ -743,8 +743,8 @@
       
       // 플레이어 기본 정보
       const infoDiv = document.createElement('div');
+      infoDiv.innerHTML = `<strong>${player.name}</strong> | 역할: ${player.role} || 골드: ${player.gold}\n mineCart: ${player.limit.mineCart ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || pickaxe: ${player.limit.pickaxe ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || lantern: ${player.limit.lantern ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'}`;
       // infoDiv.innerHTML = `<strong>${player.name}</strong> | 역할: ${player.role} || 골드: ${player.gold}\n mineCart: ${player.limit.mineCart ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || pickaxe: ${player.limit.pickaxe ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || lantern: ${player.limit.lantern ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'}`;
-      infoDiv.innerHTML = `<strong>${player.name}</strong> | 역할: ${player.name === username ? player.role : '?'} || 골드: ${player.name === username ? player.gold : '?'}\n mineCart: ${player.limit.mineCart ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || pickaxe: ${player.limit.pickaxe ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || lantern: ${player.limit.lantern ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'}`;
       playerDiv.appendChild(infoDiv);
       
       //드랍 리스너

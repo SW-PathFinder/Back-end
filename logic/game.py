@@ -106,7 +106,7 @@ class Game:
             ###디버깅용
             # board = self.board.showBoard()
             board =  [{"x": x, "y": y, "cardId": self.board.board[x, y].num,"reverse":self.board.board[x, y].flip} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0]
-            players = {name: {"name":p.name,"role": p.role if player == self.currentPlayer else "?", "limit":p.limit,"gold": p.gold if player == self.currentPlayer else "?", "hand": [{"cardId": card.num,"cardType":card.type, "reverse": card.flip, "tool":card.tool} if name == player else {"cardId": -8,"cardType":"path", "reverse": False} for card in p.hand]} for name, p in self.players.items()}
+            players = {name: {"name":p.name,"role": p.role if player == name else "?", "limit":p.limit,"gold": p.gold if player == name else "?", "hand": [{"cardId": card.num,"cardType":card.type, "reverse": card.flip, "tool":card.tool} if name == player else {"cardId": -8,"cardType":"path", "reverse": False} for card in p.hand]} for name, p in self.players.items()}
             currentPlayer = self.currentPlayer
             for card in board:
                 if card["cardId"] in (-2,-4,-6):
