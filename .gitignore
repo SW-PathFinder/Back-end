@@ -17,7 +17,6 @@ lib64/
 parts/
 sdist/
 var/
-.github/
 
 # -------------------------------
 # 2. Django-specific
@@ -94,3 +93,5 @@ $RECYCLE.BIN/
 apps/logic/gameTest.ipynb
 apps/logic/test.ipynb
 cardIndex
+/config
+/쓰레기통
