@@ -144,7 +144,6 @@ class Game:
 
                     self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num}})
                 else:
-                    print(7)
                     self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
 
                 self._nextTrun()
@@ -324,7 +323,7 @@ class Game:
                 self._aboveTrun()
                 winner = "worker" if endType == "gold" else "saboteur"
                 
-                self.tasks.append({"player":self.currentPlayer,"target":"all","type":"round_end","data":{"winner":winner,'roles':{player:self.players[player].role for player in self.players},"currentPlayer":self.currentPlayer}})
+                self.tasks.append({"player":self.currentPlayer,"target":"all","type":"round_end","data":{"winner":winner,'roles':{player:self.players[player].role for player in self.players}}})
                 
                 self.tasks = [task for task in self.tasks if task["type"] not in ["drawCard", "turn_change"]]
                 # 금 배분

@@ -441,9 +441,11 @@
               case "path":
                 // showToast(`경로 카드가 배치되었습니다: ${data.data.x}, ${data.data.y}`, 'info');
                 showToast(`${data.player}님이 경로 카드를 배치했습니다: (${data.data.x}, ${data.data.y})`, 'info');
+                animateCardPlacement(data.data.x, data.data.y)
                 break;
               case "rockFail":
                 showToast(`${data.player}님이 돌을 파괴했습니다: ${data.data.x}, ${data.data.y}`, 'info');
+                animateCardPlacement(data.data.x, data.data.y);
                 break;
               case "sabotage":
                 showToast(`${data.player}님이 ${data.data.target}님을 방해했습니다. 방해 유형: ${data.data.cardType}`, 'info');
@@ -462,6 +464,7 @@
                 } else {
                   showToast(`${data.player}님이 지도 카드를 확인했습니다: (${data.data.x}, ${data.data.y})`, 'info');
                 }
+                animateCardPlacement(data.data.target[0], data.data.target[1]);
                 break;
               case "discard":
                 showToast(`${data.player}님이 ${data.data.handNum}번째 카드를 버렸습니다. `,'info');
@@ -471,6 +474,10 @@
                 break;
               case "turn_change":
                 showToast(`${data.data}님의 차례입니다.`, 'info');
+                break;
+              case "rock_found":
+                // showToast(`${data.player}님이 돌을 발견했습니다: (${data.data.x}, ${data.data.y})`, 'info');
+                animateCardPlacement(data.data.x, data.data.y);
                 break;
             }
       });      
@@ -483,10 +490,10 @@
             log(data.data.card);
             // 현재 플레이어 오는 이벤트
             switch (data.type) {
-              // case 'drawCard':
-              //   showToast(`[카드 드로우] ${data.player}님이 카드를 드로우했습니다.`,"info");
-              //   breakdraw;
-              case 'revealDest':
+              case 'drawCard':
+                showToast(`[카드 드로우] ${data.player}님이 카드를 드로우했습니다.`,"info");
+                break;
+              case 'revealDest':{
                 if (data.data.x === 10) {
                     showToast(`[지도 보기] 중간 목적지 카드는 '${data.data.cardType === -7 ? '금' : '돌'}' 카드입니다.`,"info");
                   } else if (data.data.x === 12) {
@@ -496,6 +503,8 @@
                   } else {
                     showToast(`[지도 보기] ${data.player}님이 지도 카드를 확인했습니다: (${data.data.x}, ${data.data.y})`);
                   }
+                break;
+                }
               case 'roundStart':
                 showToast(`[라운드 시작] ${data.data.round}번째 라운드가 시작되었습니다.`, 'info');
                 break;
@@ -1561,6 +1570,81 @@ function handleCardDiscard(cardData) {
     })
   });
 }
+
+
+
+
+
+
+
+function animateCardPlacement(x, y) {
+  // 1. GameBoardInfo 업데이트
+  const existingCardIndex = GameBoardInfo.findIndex(cell => cell.x === x && cell.y === y);
+
+  console.log("카드 배치 애니메이션: GameBoardInfo 업데이트 완료");
+
+  setTimeout(() => {
+    const cell = document.querySelector(`.board-cell[data-x="${x}"][data-y="${y}"]`);
+    if (!cell) {
+      isAnimating = false;
+      return;
+    }
+
+    // 4. 셀 강조 효과 적용
+    cell.style.transition = 'all 0.5s ease';
+    cell.style.boxShadow = '0 0 15px 5px rgba(255, 215, 0, 0.8)';
+    cell.style.zIndex = '10';
+
+    // 5. 반짝이는 효과 추가
+    const flash = document.createElement('div');
+    flash.style.position = 'absolute';
+    flash.style.top = '0';
+    flash.style.left = '0';
+    flash.style.width = '100%';
+    flash.style.height = '100%';
+    // flash.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+    flash.style.borderRadius = '5px';
+    flash.style.opacity = '0';
+    flash.style.transition = 'opacity 0.3s ease';
+    flash.style.pointerEvents = 'none'; // 클릭 이벤트를 방해하지 않도록
+    cell.appendChild(flash);
+
+    // 깜빡이는 효과 실행
+    setTimeout(() => { flash.style.opacity = '0.8'; }, 100);
+    setTimeout(() => { flash.style.opacity = '0'; }, 350);
+    setTimeout(() => { 
+      if (flash.parentNode === cell) {
+        cell.removeChild(flash);
+      }
+    }, 850);
+
+    // 셀 효과 정리 및 애니메이션 종료
+    setTimeout(() => {
+      cell.style.boxShadow = '';
+      cell.style.zIndex = '';
+      isAnimating = false;
+    }, 1500);
+  }, 300); // 0.3초(300ms) 뒤에 실행
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   </script>
 
 

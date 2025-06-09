@@ -292,6 +292,21 @@ socketio_asgi_app = socketio.ASGIApp(sio)
 
 # ② StaticApp(정적 파일 + Socket.IO) 를 최종 ASGI 앱으로 사용
 app = StaticApp(socketio_asgi_app)
+@sio.event
+async def any_event(event, sid, data):
+    print(f"[SOCKET] 이벤트: {event}, SID: {sid}, 데이터: {data}")
+
+# 모든 이벤트를 가로채는 미들웨어 등록
+original_emit = sio._handle_event
+
+async def logging_handle_event(*args, **kwargs):
+    event = args[2] if len(args) > 2 else None
+    data = args[3] if len(args) > 3 else None
+    sid = args[1] if len(args) > 1 else None
+    print(f"[SOCKET] 이벤트: {event}, SID: {sid}, 데이터: {data}")
+    return await original_emit(*args, **kwargs)
+
+sio._handle_event = logging_handle_event
 
 
 # ─────────────────────────  헬퍼 함수 ─────────────────────────
@@ -336,7 +351,7 @@ async def send_private(username: str, event: str, data: Any):
     data["room"] = username_to_room(username)
     if server_sid:
         # 서버에게도 전송 (디버깅용)
-        print(data)
+        # print(data)
         await sio.emit(event, data, to=server_sid)
 
 
@@ -542,6 +557,11 @@ async def game_action(sid, data):
             await broadcast(room, "game_update", res)
         elif isinstance(res, dict):
             await send_private(res.get("target"), "private_game_update", res)
+    
+    for player in game.players:
+        await process_json_command(sid, room, player, '{"type": "playerState", "data": {}}')
+    # 게임 상태 업데이트
+        await process_json_command(sid, room, "server", '{"type": "gameState", "data": {}}')
 
 
 @sio.event
@@ -554,6 +574,10 @@ async def chat(sid, data):
     game = get_game(room)
     if message.startswith('/'):
         await process_chat_command(sid, room, username, message)
+        for player in game.players:
+            await process_json_command(sid, room, player, '{"type": "playerState", "data": {}}')
+        # 게임 상태 업데이트
+            await process_json_command(sid, room, "server", '{"type": "gameState", "data": {}}')
     if message.startswith('{'):
         await process_json_command(sid, room, username, message)
     else:
@@ -727,7 +751,7 @@ async def process_chat_command(sid, room, username, message):
                             "handNum": handNum
                         }
                     }
-                    await process_json_command(sid, room, useprivateLogrname, str(message))
+                    await process_json_command(sid, room, username, str(message))
                     return
                 except:
                     await send_private(username, "error", {"message": "잘못된 명령어 형식입니다. 예: /sabotage target handNum"})
@@ -775,6 +799,25 @@ async def process_chat_command(sid, room, username, message):
                     return
                 except:
                     await send_private(username, "error", {"message": "잘못된 명령어 형식입니다. 예: /reverse handNum"})
+                    return
+            case "changecard":
+                # /changeCard playername handNum cardType reverse=False
+                try:
+                    target = str(parts[1])
+                    print(f"before Cardset : ",[str(c.num) for c in game.players[target].hand])
+                    handNum = int(parts[2])
+                    cardType = int(parts[3].lower())
+                    reverse = parts[4].lower() == "true" if len(parts) > 4 else False
+                    game = get_game(room)
+                    game.players[target].hand[handNum] = Card(cardType)
+                    if reverse:
+                        game.players[target].hand[handNum].reversePathCard()
+                    print(f"after Cardset : ",[str(c.num) for c in game.players[target].hand])
+                    return
+                except Exception as message:
+                    print(f"Error processing changeCard command: {message}")
+                    
+                    # await send_private(username, "error", {"player":"server","message": "잘못된 명령어 형식입니다. 예: /changeCard player handNum cardType reverse=True/False"})
                     return
             case _:
                 # 알 수 없는 명령어
