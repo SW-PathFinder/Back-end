@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sabotage 게임(관리자용)</title>
+  <style>
+    body { font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 20px; background-color: #f4f6f9; }
+    .container {  margin: 0 auto; max-width: 1900px; padding: 20px; }
+    .card { 
+      background: white;
+      border-radius: 10px; 
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    #log { 
+      height: 580px; 
+      border: 1px solid #ddd; 
+      padding: 10px; 
+      overflow-y: scroll; 
+      background: #fff;
+      border-radius: 5px;
+      font-family: monospace;
+    }
+    #privateLog { 
+      height: 580px; 
+      border: 1px solid #ddd; 
+      padding: 10px; 
+      overflow-y: scroll; 
+      background: #fff;
+      border-radius: 5px;
+      font-family: monospace;
+    }
+    .section { margin-bottom: 15px; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .header h2 {
+      margin: 0;
+      color: #3e62a8;
+    }
+    input, button { 
+      margin-right: 5px; 
+      padding: 8px 12px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    button {
+      background: #3e62a8;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2d4b82;
+    }
+    button.secondary {
+      background: #6c757d;
+    }
+    button.secondary:hover {
+      background: #5a6268;
+    }
+    @media (max-width: 1200px) {
+    #game-container {
+      flex-direction: column; /* 세로 배치로 전환 */
+    }
+    
+    #game-container > div {
+      flex: 1 !important; /* 비율 무시하고 동일한 크기로 설정 */
+      width: 100%; /* 전체 너비 사용 */
+    }
+    
+    #log {
+      height: 200px; /* 로그 영역 높이 줄임 */
+    }
+    #privateLog {
+      height: 200px; /* 비공개 로그 영역 높이 줄임 */
+    }
+    
+    #privateMessageViewer {
+      height: 600px !important; /* 보드 영역 높이 줄임 */
+    }
+  }
+  
+  /* 더 작은 화면에서 추가 조정 */
+  @media (max-width: 768px) {
+    #privateMessageViewer {
+      height: 400px !important; /* 보드 영역 더 줄임 */
+      
+    }
+  }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  
+
+	<meta name="viewport" content="width=device-width, initial-scale=1" charset="utf-8">
+	<link rel="shortcut icon" href="resources/images/favicon.ico" type="image/x-icon">
+
+	<!-- Bootstrap -->
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+	<!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script> -->
+	<!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> -->
+	<!-- Bootstrap -->
+
+	<link rel="stylesheet" href="style.css" type="text/css" media="screen">
+	<!-- <script src="openvidu-browser-2.31.0.js"></script> -->
+	<script src="openvidu.js"></script>
+	<script src="openvidu_app.js"></script>
+
+</head>
+
+</head>
+<body>
+  <div class="container">
+    <!-- 헤더 -->
+    <div class="header">
+      <h2>Sabotage 게임(관리자용)</h2>
+      <div>
+        <span class="room-info" id="roomInfo"></span>
+        <button class="secondary" id="btnBackToLobby">로비로 돌아가기</button>
+      </div>
+    </div>
+    
+    <!-- 사용자 이름 입력 단계 -->
+    <div class="card" id="usernameSection">
+      <h3>사용자 이름을 입력하세요</h3>
+      <div>
+        <input type="text" id="userInput" placeholder="사용자 이름 입력" />
+        <button id="btnSetUsername">확인</button>
+      </div>
+      <div id="usernameError" style="color: red; margin-top: 5px;"></div>
+    </div>
+      <!-- 게임 인터페이스 -->
+    <div class="card" id="gameInterface" style="display: none;">
+      <h3>환영합니다, <span id="welcomeUsername"></span>님!</h3>
+        <!-- 방 설정 및 게임 컨트롤 -->
+      <div class="section">
+        <label>방 이름: <input type="text" id="roomInput" disabled value="" /></label>
+      </div>
+      
+      <!-- 채팅 -->
+      <!-- <div class="section">
+        <input type="text" id="chatMessage" placeholder="메시지를 입력하세요" style="width: 70%;" />
+        <button id="btnSendChat">채팅 보내기</button>
+      </div> -->
+    </div>    <!-- 로그 -->
+    <!-- 폭은 최대로,  -->
+    <div id="game-container" style="display: flex; gap: 20px; width: 100%;">
+      <!-- 왼쪽 컨테이너 - 고정 너비로 설정 -->
+      <div style="flex: 1; width: 25%; max-width: 25%;">
+        <div class="card">
+          <h3>게임 로그</h3>
+          <div id="log"></div>
+        </div>
+        <div class="card">
+          <h3>비공개 게임 로그</h3>
+          <div id="privateLog"></div>
+        </div>
+      </div>
+      
+      <!-- 오른쪽 컨테이너 - 남은 공간 차지 -->
+      <div id="game-info-container" style="flex: 3; width: 75%; max-width: 75%;">
+        <!-- game 메시지 뷰어 -->
+        <div class="card">
+          <h3>게임 정보</h3>
+          <div id="privateGameViewer" style="border: 1px solid #ddd; padding: 10px; background: #f8f9fa; border-radius: 5px; white-space: pre;"></div>
+        </div>
+        <!-- 개인 메시지 뷰어 -->
+        <div class="card">
+          <h3>개인별 정보</h3>
+          <div id="privateHandViewer" style="border: 1px solid #ddd; padding: 10px; background: #f8f9fa; border-radius: 5px; white-space: pre;"></div>
+        </div>
+        
+        <div class="card">
+          <h3>보드</h3>
+          <div id="privateMessageViewer" style="height: 800px; border: 1px solid #ddd; padding: 10px; background: #f8f9fa; border-radius: 5px; white-space: pre;"></div>
+        </div>
+        <div id="privateMessageViewer1" style="height: 500px; border: 1px solid #ddd; padding: 10px; overflow-y: scroll; background: #f8f9fa; border-radius: 5px; font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace; white-space: pre; font-size: 14px; line-height: 1.6; letter-spacing: 0; font-variant-numeric: tabular-nums;"></div>
+      </div>
+    </div>
+       
+
+    <div class="card">
+      <!-- 여기에 index.html 삽입 -->
+    
+    
+    
+    
+    <div id="main-container" class="container">
+		<div id="join">
+			<!-- <div id="img-div"><img src="resources/images/openvidu_grey_bg_transp_cropped.png" /></div> -->
+			<div id="join-dialog" class="jumbotron vertical-center hide">
+				<h1>Join a video session</h1>
+				<form class="form-group" onsubmit="joinSession(username,roomId); return false">
+        
+					<p>
+						<label>Participant</label>
+						<input class="form-control" type="text" id="userName" required>
+					</p>
+					<p>
+						<label>Session</label>
+						<input class="form-control" type="text" id="sessionId" required>
+					</p>
+					<p class="text-center">
+						<input class="btn btn-lg btn-success" type="submit" name="commit" id="join-btn" value="Join!">
+					</p>
+				</form>
+			</div>
+		</div>
+
+		<div id="session" style="display: none;">
+			<div id="session-header">
+				<h1 id="session-title"></h1>
+				<input class="btn btn-large btn-danger" type="button" id="buttonLeaveSession" onmouseup="leaveSession()" value="Leave session">
+			</div>
+			<div id="main-video" class="col-md-6 "><p></p><video autoplay playsinline="true"></video></div>
+			<div id="video-container" class="col-md-6"></div>
+		</div>
+	</div>
+    
+    
+    
+    
+    
+    </div>
+  </div>
+  <!-- socket.io-client CDN -->
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>  
+  <script>
+    let socket;
+    let username = null;
+    let isUsernameSet = false;
+    let roomId = null;
+    
+    const logEl = document.getElementById('log');
+    const privateLogEl = document.getElementById('privateLog');
+    const userInput = document.getElementById('userInput');
+    const btnSetUsername = document.getElementById('btnSetUsername');
+    const usernameSection = document.getElementById('usernameSection');
+    const gameInterface = document.getElementById('gameInterface');
+    const welcomeUsername = document.getElementById('welcomeUsername');
+    const usernameError = document.getElementById('usernameError');
+    const roomInfo = document.getElementById('roomInfo');
+    const btnBackToLobby = document.getElementById('btnBackToLobby');
+    var GameBoardInfo = {}
+
+
+
+    
+    function log(msg) {
+      const p = document.createElement('div');
+      p.textContent = msg;
+      logEl.appendChild(p);
+      logEl.scrollTop = logEl.scrollHeight;
+    }    // URL에서 방 코드 가져오기
+    function privateLog(msg) {
+      const p = document.createElement('div');
+      p.textContent = msg;
+      privateLogEl.appendChild(p);
+      privateLogEl.scrollTop = privateLogEl.scrollHeight;
+    }    // URL에서 방 코드 가져오기
+    function getRoomIdFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('room');    }
+    
+    // 페이지 로드 시 초기화
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomName = urlParams.get('room_name');
+      const playerName = urlParams.get('player_name');
+      
+      
+      if (roomName && playerName) {
+        document.getElementById('sessionId').value = roomName;
+        document.getElementById('userName').value = playerName;
+        joinSession(); // 둘 다 있으면 자동 참가
+      }
+      
+      // 저장된 사용자 이름 확인
+      const savedUsername = localStorage.getItem('username');
+      console.log("localStorage에서 가져온 사용자 이름:", savedUsername);
+      
+      roomId = getRoomIdFromUrl();
+      console.log("URL에서 가져온 방 ID:", roomId);
+      
+      // URL에 room 파라미터가 있고 저장된 사용자 이름이 있으면 바로 접속
+      if (roomId && savedUsername) {
+        username = savedUsername;
+        isUsernameSet = true;
+        userInput.value = username;
+        userInput.disabled = true;
+        btnSetUsername.disabled = true;
+        welcomeUsername.textContent = username;
+        
+        // 사용자 이름 섹션 숨기고 게임 인터페이스 표시
+        usernameSection.style.display = 'none';
+        gameInterface.style.display = 'block';
+        
+        // 방 정보 표시 업데이트
+        roomInfo.textContent = `방 ID: ${roomId}`;
+        document.getElementById('roomInput').value = roomId;
+        
+        // 서버 연결 및 게임 화면 표시
+        connectToServer(savedUsername);
+          
+        // 자동으로 방에 참가
+        log(`자동으로 방 ${roomId}에 참가 시도 중...`);
+        setTimeout(() => {
+          if (socket && socket.connected) {
+            socket.emit('join_game', { room: roomId, player: username });
+            joinSession(username, roomId);
+            log(`게임 참가 요청: 방=${roomId}, 사용자=${username}`);
+          }
+        }, 1000); // 서버 연결 후 1초 후에 방 참가 요청
+      }      // URL에 room 파라미터가 있지만 저장된 사용자 이름이 없는 경우 - 자동 생성된 이름 사용
+      else if (roomId && !savedUsername) {
+        const autoUsername = '게스트_' + Math.floor(Math.random() * 10000);
+        username = autoUsername;
+        isUsernameSet = true;
+        userInput.value = username;
+        userInput.disabled = true;
+        btnSetUsername.disabled = true;
+        welcomeUsername.textContent = username;
+        
+        // 자동 생성된 이름을 localStorage에 저장
+        localStorage.setItem('username', username);
+        console.log("자동 생성된 사용자 이름 저장:", username);
+        
+        // 사용자 이름 섹션 숨기고 게임 인터페이스 표시
+        usernameSection.style.display = 'none';
+        gameInterface.style.display = 'block';
+        
+        // 방 정보 표시 업데이트
+        roomInfo.textContent = `방 ID: ${roomId}`;
+        document.getElementById('roomInput').value = roomId;
+        
+        // 서버 연결 및 게임 화면 표시
+        connectToServer(autoUsername);
+        
+        // 자동으로 방에 참가
+        log(`자동으로 방 ${roomId}에 참가 시도 중...`);
+        setTimeout(() => {
+          if (socket && socket.connected) {
+            socket.emit('join_game', { room: roomId, player: username });
+            log(`게임 참가 요청: 방=${roomId}, 사용자=${username}`);
+          } else {
+            log(`서버 연결이 아직 안됐습니다. 잠시 후 다시 시도합니다.`);
+            // 재시도 로직 추가
+            setTimeout(() => {
+              if (socket && socket.connected) {
+                socket.emit('join_game', { room: roomId, player: username });
+                log(`게임 참가 재시도: 방=${roomId}, 사용자=${username}`);
+              } else {
+                log(`서버 연결에 실패했습니다. 페이지를 새로고침 해보세요.`);
+              }
+            }, 2000);
+          }
+        }, 1000); // 서버 연결 후 1초 후에 방 참가 요청
+      }
+      // URL에 room 파라미터는 없지만 저장된 사용자 이름이 있는 경우
+      else if (savedUsername) {
+        username = savedUsername;
+        isUsernameSet = true;
+        userInput.value = username;
+        userInput.disabled = true;
+        btnSetUsername.disabled = true;
+        welcomeUsername.textContent = username;
+        
+        // 사용자 이름 섹션 숨기고 게임 인터페이스 표시
+        usernameSection.style.display = 'none';
+        gameInterface.style.display = 'block';
+        
+        // 서버 연결 및 게임 화면 표시
+        connectToServer(savedUsername);
+        
+        log(`로그인 완료: ${username}님 환영합니다.`);
+      }
+      // 로비로 돌아가기 버튼 처리
+      btnBackToLobby.addEventListener('click', () => {
+        // 방에서 나가기 이벤트 발생
+        if (socket && socket.connected && roomId) {
+          socket.emit('leave_room', { room: roomId, player: username });
+          log(`[퇴장] ${roomId} 방을 나갑니다.`);
+        }
+        // 로비로 이동
+        window.location.href = 'lobby.html';
+      });
+    });    // 사용자 이름 설정
+    btnSetUsername.addEventListener('click', () => {
+      const inputUsername = userInput.value.trim();
+      if (!inputUsername) {
+        usernameError.textContent = '사용자 이름을 입력하세요.';
+        return;
+      }
+      
+      usernameError.textContent = '';
+      
+      // 서버에 먼저 연결
+      connectToServer(inputUsername);
+    });    function connectToServer(inputUsername) {
+      try {
+        //socket = io('http://money.ipdisk.co.kr:43000', {
+        socket = io('https://money.ipdisk.co.kr:3000', {
+
+          reconnectionAttempts: 5,
+          timeout: 10000
+        });
+        
+        // 연결 오류 처리
+        socket.on('connect_error', (error) => {
+          log(`⚠️ 서버 연결 오류: ${error.message}`);
+          usernameError.textContent = '서버에 연결할 수 없습니다. 네트워크를 확인하세요.';
+        });
+        
+        // 연결 시간 초과 처리
+        socket.on('connect_timeout', () => {
+          log(`⚠️ 서버 연결 시간 초과`);
+          usernameError.textContent = '서버 연결 시간이 초과되었습니다.';
+        });
+        
+        socket.on('connect', () => {
+          log(`✔ 서버 연결됨: ID=${socket.id}`);
+          // 사용자 이름 검증 요청
+          if(inputUsername) {
+            socket.emit('set_username', { username: inputUsername });
+          }
+        });
+        
+        socket.on('username_result', (data) => {
+          if (data.success) {
+            username = data.username;
+            isUsernameSet = true;
+            userInput.disabled = true; // 사용자 이름 입력 비활성화
+            btnSetUsername.disabled = true;
+            welcomeUsername.textContent = username;
+            usernameSection.style.display = 'none';
+            gameInterface.style.display = 'block';
+            
+            // 사용자 이름을 localStorage에 저장
+            localStorage.setItem('username', username);
+            
+            log(`사용자 이름 설정 완료: ${username}`);
+            
+            // URL에 방 ID가 있으면 자동으로 방에 참가
+            if (roomId) {
+              log(`URL을 통한 방 ${roomId} 자동 참가 시도...`);
+              setTimeout(() => {
+                socket.emit('join_game', { room: roomId, player: username });
+                log(`게임 참가 요청: 방=${roomId}, 사용자=${username}`);
+              }, 500);
+            }
+          } else {
+            usernameError.textContent = data.message;
+            socket.disconnect();
+          }
+        });
+        
+        // 기본 소켓 이벤트 설정
+        setupSocketEvents();
+      } catch (error) {
+        log(`⚠️ 서버 연결 중 오류 발생: ${error.message}`);
+        usernameError.textContent = '서버 연결 중 오류가 발생했습니다.';
+      }
+    };    
+    function setupSocketEvents() {
+    //socket.on에서 data.room이 현재 방 ID와 일치하는지 확인 후 일치하지 않으면 패스
+      
+      // 게임 관련 이벤트
+      socket.on('player_joined', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+        log(`[참가] ${data.player}님이 방에 참가했습니다.`);
+        roomInfo.textContent = `방: ${data.room} (${data.player_count}명)`;
+      });
+      
+      // 플레이어 퇴장 이벤트
+      socket.on('player_left', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+        log(`[퇴장] ${data.player}님이 방에서 나갔습니다.`);
+        roomInfo.textContent = `방: ${data.room} (${data.player_count}명)`;
+      });
+      
+      // 방장 변경 이벤트
+      socket.on('host_changed', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+        log(`[알림] ${data.new_host}님이 새로운 방장이 되었습니다.`);
+      });
+      
+      // 카운트다운 이벤트
+      socket.on('countdown_started', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+        log(`[공지] 방이 가득 찼습니다! ${data.seconds}초 후에 게임이 자동으로 시작됩니다.`);
+      });
+      
+      socket.on('countdown_tick', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+        log(`[카운트다운] 게임 시작까지 ${data.seconds_left}초...`);
+      });
+      
+      socket.on('game_started', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+        log(`[게임 시작] 게임이 시작되었습니다. 참가자: ${data.data.players.join(', ')}`);
+      });
+
+      socket.on('game_update', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+        privateLog(`[게임 업데이트] ${JSON.stringify(data)}`);
+      });      
+      
+      socket.on('private_game_update', (data,room) => {
+        // 만약 data.type === 'board_info'라면
+        console.log("private_game_update 이벤트 발생:", data);
+        console.log("private_game_update 이벤트 발생, room:", data.room);
+        console.log("private_game_update 이벤트 발생, roomId:", roomId);
+        if (data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+          if (data.type != 'playerState' && data.type != 'gameState') {
+            privateLog(`[비공개 업데이트] ${JSON.stringify(data)}`);
+          }
+          if (data.type === 'gameState') {
+            // console.log("게임 상태 업데이트:", data.data);
+            const gameData = data.data;
+            // 1. 게임 정보 표시
+            renderGameInfo(gameData);
+            
+            // 2. 플레이어 정보 표시
+            renderPlayerInfo(gameData);
+            
+            // 3. 게임 보드 표시
+            renderGameBoard(gameData);
+            
+            // 로그에 기록
+            // log(`[게임 업데이트] 라운드: ${gameData.round}, 현재 플레이어: ${gameData.currentPlayer}`);
+            return;
+          }
+        }
+      )
+      // 채팅 이벤트
+      socket.on('chat', (data) => {
+        if (data.room || data.room !== roomId) {console.log(`[비공개 업데이트] 다른 방(${data.room})의 업데이트가 무시되었습니다.`);return;}
+        log(`[채팅] ${data.username}: ${data.message}`);
+      });
+
+      // 오류 처리
+      socket.on('error', (err) => {
+        const errorMsg = err.message || JSON.stringify(err);
+        log(`[오류] ${errorMsg}`);
+        
+        // 오류 유형에 따른 처리
+        if (errorMsg.includes('방을 찾을 수 없습니다') && roomId) {
+          log(`⚠️ 방 ${roomId}를 찾을 수 없습니다. 방이 이미 종료되었거나 존재하지 않는 방입니다.`);
+        }
+      });
+      
+      // 연결 해제 이벤트
+      socket.on('disconnect', (reason) => {
+        log(`[연결 해제] 서버와 연결이 끊어졌습니다. 이유: ${reason}`);
+      });    }        
+      
+      
+      document.getElementById('btnSendChat').addEventListener('click', () => {
+      const room = roomId;  // URL에서 가져온 방 ID 사용
+      const msg = document.getElementById('chatMessage').value.trim();
+      if (!room) {
+        alert('방 정보를 찾을 수 없습니다.');
+        return;
+      }
+      if (!msg) return;
+      socket.emit('chat', { room, message: msg });
+      document.getElementById('chatMessage').value = '';
+    });
+
+    // Enter 키로 사용자 이름 설정
+    userInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !isUsernameSet) {
+        btnSetUsername.click();
+      }
+    });
+
+    // Enter 키로 채팅 전송
+    document.getElementById('chatMessage').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('btnSendChat').click();
+      }
+    });
+
+
+
+
+    function getCardImagePath(cardId) {
+    // 카드 번호와 이미지 파일명 매핑
+    const card_image_mapping = {
+      // 특수 카드 (목적지/시작점)
+      "-8": "bg_playable",
+      "-7": "path/14",
+      "-6": "path/14",
+      "-5": "path/8",
+      "-4": "path/8",
+      "-3": "path/6",
+      "-2": "path/6",
+      "-1": "path/27",
+      
+      // 길 카드
+      "1": "path/11",
+      "2": "path/13",
+      "3": "path/16",
+      "4": "path/1",
+      "5": "path/9",
+      "6": "path/0",
+      "7": "path/4",
+      "8": "path/7",
+      
+      // 막힌 길 카드
+      "9": "path/32",
+      "10": "path/29",
+      "11": "path/15",
+      "12": "path/38",
+      "13": "path/42",
+      "14": "path/5",
+      "15": "path/2",
+      "16": "path/31",
+      
+      // 액션 카드
+      "17": "action/sabotage_m",
+      "18": "action/sabotage_l",
+      "19": "action/sabotage_p",
+      "20": "action/repair_m",
+      "21": "action/repair_l",
+      "22": "action/repair_p",
+      "23": "action/repair_lm",
+      "24": "action/repair_pm",
+      "25": "action/repair_pl",
+      "26": "action/map",
+      "27": "action/destroy",
+    };
+    
+    // cardId가 배열인 경우 첫 번째 요소 사용
+    const id = Array.isArray(cardId) ? cardId[0] : cardId;
+    
+    // 매핑에서 이미지 경로 가져오기
+    const imagePath = card_image_mapping[id] || "cell";
+    return `/assets/${imagePath}.png`;
+  }
+
+  // 게임 정보 표시 함수
+  function renderGameInfo(gameData) {
+    const gameInfoContainer = document.getElementById('privateGameViewer');
+    gameInfoContainer.innerHTML = '';
+    
+    // 게임 정보 컨테이너 생성
+    const infoDiv = document.createElement('div');
+    
+    // 현재 라운드 표시
+    const roundInfo = document.createElement('div');
+    roundInfo.innerHTML = `<strong>현재 라운드:</strong> ${gameData.round}`;
+    infoDiv.appendChild(roundInfo);
+    
+    // 현재 플레이어 순서 표시
+    const playerOrderDiv = document.createElement('div');
+    playerOrderDiv.innerHTML = '<strong>플레이어 순서:</strong> ';
+    
+    // 플레이어 목록 가져오기
+    const playersList = Object.keys(gameData.players);
+    
+    // 현재 플레이어 순서대로 표시
+    playersList.forEach(playerName => {
+      const playerSpan = document.createElement('span');
+      playerSpan.textContent = playerName;
+      
+      // 현재 차례 플레이어는 하이라이트
+      if (playerName === gameData.currentPlayer) {
+        playerSpan.style.backgroundColor = '#ffeb3b';
+        playerSpan.style.fontWeight = 'bold';
+        playerSpan.style.padding = '2px 5px';
+        playerSpan.style.borderRadius = '3px';
+      }
+      
+      playerOrderDiv.appendChild(playerSpan);
+      playerOrderDiv.appendChild(document.createTextNode(' '));
+    });
+    
+    infoDiv.appendChild(playerOrderDiv);
+    
+    // 카드덱 정보 표시 (숫자만, 이미지는 생략)
+    const deckInfo = document.createElement('div');
+    deckInfo.innerHTML = `<strong>덱 남은 카드:</strong> ${gameData.deck.length}장`;
+    infoDiv.appendChild(deckInfo);
+    
+    // 골드 카드 정보
+    const goldInfo = document.createElement('div');
+    goldInfo.innerHTML = `<strong>골드 카드:</strong> ${gameData.goldDeck.length}장`;
+    infoDiv.appendChild(goldInfo);
+    
+    gameInfoContainer.appendChild(infoDiv);
+  }
+
+  // 플레이어 정보 표시 함수
+  function renderPlayerInfo(gameData) {
+    const playerInfoContainer = document.getElementById('privateHandViewer');
+    playerInfoContainer.innerHTML = '';
+    
+    // 플레이어 정보 컨테이너
+    const playersDiv = document.createElement('div');
+    playersDiv.style.display = 'flex';
+    playersDiv.style.flexDirection = 'column';
+    playersDiv.style.gap = '10px';
+    
+    // 각 플레이어 정보 표시
+    Object.values(gameData.players).forEach(player => {
+      const playerDiv = document.createElement('div');
+      playerDiv.style.padding = '5px';
+      playerDiv.style.border = '1px solid #ddd';
+      playerDiv.style.borderRadius = '5px';
+      
+      // 현재 차례 플레이어는 하이라이트
+      if (player.name === gameData.currentPlayer) {
+        playerDiv.style.backgroundColor = '#f0f8ff';
+        playerDiv.style.borderColor = '#007bff';
+      }
+      
+      // 플레이어 기본 정보
+      const infoDiv = document.createElement('div');
+    // {
+    //   "limit": {
+    //     "mineCart": false,
+    //     "pickaxe": false,
+    //     "lantern": false
+    //   }
+    // }
+      // infoDiv.innerHTML = `<strong>${player.name}</strong> | 역할: ${player.role} ||mineCart:  ${player.limit.mineCart ? '제한' : '정상'} || pickaxe:  ${player.limit.pickaxe ? '제한' : '정상'} || lantern:  ${player.limit.lantern ? '제한' : '정상'} || 골드: ${player.gold}`;
+      infoDiv.innerHTML = `<strong>${player.name}</strong> | 역할: ${player.role} || mineCart: ${player.limit.mineCart ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || pickaxe: ${player.limit.pickaxe ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || lantern: ${player.limit.lantern ? '<span style="background-color: #ff4c4c; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">제한</span>' : '정상'} || 골드: ${player.gold}`;
+      playerDiv.appendChild(infoDiv);
+      
+      // 플레이어 핸드 카드 표시
+      const handDiv = document.createElement('div');
+      handDiv.style.display = 'flex';
+      handDiv.style.gap = '5px';
+      handDiv.style.marginTop = '5px';
+      handDiv.style.overflowX = 'auto';
+      
+      // 각 카드 이미지 표시
+      player.hand.forEach(card => {
+      const cardImg = document.createElement('img');
+      cardImg.src = getCardImagePath(card.cardId);
+      cardImg.style.width = '80px';
+      cardImg.style.height = '120px';
+      cardImg.style.border = '1px solid #ccc';
+      
+      // 카드 회전 로직 수정
+      // 1-16번 카드(path 폴더)와 17-27번 카드(action 폴더)는 기본적으로 뒤집어서 표시
+      const cardIdNum = Array.isArray(card.cardId) ? card.cardId[0] : card.cardId;
+      const needsDefaultRotation = (cardIdNum >= 1 && cardIdNum <= 16);
+      
+      // reverse가 true면 회전(또는 회전 취소)
+      if (!needsDefaultRotation){}
+      else if (card.reverse) {
+        cardImg.style.transform = 'rotate(180deg)';
+      }
+      
+      // 카드 툴팁 (마우스 오버시 카드 정보 표시)
+      cardImg.title = `ID: ${card.cardId}, 타입: ${card.cardType}`;
+      
+      handDiv.appendChild(cardImg);
+    });
+      
+      playerDiv.appendChild(handDiv);
+      playersDiv.appendChild(playerDiv);
+    });
+    
+    playerInfoContainer.appendChild(playersDiv);
+  }
+
+  // 게임 보드 표시 함수
+  function renderGameBoard(gameData) {
+  // 보드 내용 비교를 위해 JSON 문자열로 변환하여 비교
+  const boardStr = JSON.stringify(gameData.board);
+  const prevBoardStr = JSON.stringify(GameBoardInfo);
+  
+  if (prevBoardStr === boardStr) {
+    console.log("게임 보드 정보가 변경되지 않았습니다. 업데이트를 건너뜁니다.");
+    return; // 게임 보드 정보가 변경되지 않았으면 업데이트하지 않음
+  }
+  
+  console.log("게임 보드 정보가 업데이트되었습니다.");
+  // 깊은 복사를 통해 보드 정보 저장 (참조 복사가 아닌)
+  GameBoardInfo = JSON.parse(JSON.stringify(gameData.board));
+  
+  const boardContainer = document.getElementById('privateMessageViewer');
+  boardContainer.innerHTML = '';
+  
+  // 외부 컨테이너 생성 (드래그 영역을 제한하기 위한 컨테이너)
+  const outerContainer = document.createElement('div');
+  outerContainer.style.position = 'relative';
+  outerContainer.style.width = '100%';
+  outerContainer.style.height = '800px';
+  outerContainer.style.overflow = 'hidden';
+  
+  // 드래그 가능한 보드 컨테이너 생성
+  const dragContainer = document.createElement('div');
+  dragContainer.style.position = 'absolute';
+  dragContainer.style.cursor = 'move';
+  dragContainer.id = 'draggableBoard';
+  
+  // 보드 그리드 컨테이너 생성
+  const gridContainer = document.createElement('div');
+  gridContainer.style.display = 'grid';
+  gridContainer.style.gridTemplateColumns = 'repeat(22, 80px)';
+  gridContainer.style.gridTemplateRows = 'repeat(22, 80px)';
+  gridContainer.style.gap = '2px';
+  
+  // 보드 배열 생성 (22x22)
+  const boardArray = Array(22).fill().map(() => Array(22).fill(null));
+  
+  // 보드 데이터를 배열에 매핑
+  gameData.board.forEach(cell => {
+    boardArray[cell.x][cell.y] = cell;
+  });
+  
+  // 그리드 셀 생성
+  for (let x = 0; x < 22; x++) {
+    for (let y = 0; y < 22; y++) {
+      const cell = document.createElement('div');
+      cell.style.width = '80px';
+      cell.style.height = '80px';
+      cell.style.backgroundColor = '#f5f5f5';
+      cell.style.border = '1px solid #ddd';
+      
+      // 셀에 카드가 있는 경우
+      if (boardArray[x][y]) {
+        const cardImg = document.createElement('img');
+        cardImg.src = getCardImagePath(boardArray[x][y].cardId);
+        if (boardArray[x][y].cardId === -6 || boardArray[x][y].cardId === -2 || boardArray[x][y].cardId === -4) {
+          cardImg.src = getCardImagePath(boardArray[x][y].cardId-1); // 목적지 카드 이미지로 변경
+          cardImg.style.opacity = '0.5'; // 목적지 카드의 경우 반투명 처리
+        }
+        cardImg.style.width = '100%';
+        cardImg.style.height = '100%';
+        cardImg.style.objectFit = 'cover';
+        
+        // 카드 회전 로직 수정
+        const cardIdNum = Array.isArray(boardArray[x][y].cardId) ? boardArray[x][y].cardId[0] : boardArray[x][y].cardId;
+        const needsDefaultRotation = (cardIdNum >= 1 && cardIdNum <= 27);
+        
+        // reverse가 true면 회전(또는 회전 취소)
+        console.log("card:",boardArray[x][y].cardId,"needsDefaultRotation:", needsDefaultRotation, "reverse:", boardArray[x][y].reverse);
+        if ((boardArray[x][y].reverse)) {
+          cardImg.style.transform = 'rotate(180deg)';
+        }
+        
+        cell.appendChild(cardImg);
+        
+        // 좌표 툴팁 추가
+        cell.title = `X: ${x}, Y: ${y}`;
+      } else {
+        // 빈 공간은 기본 cell 이미지로 채우기
+        const emptyImg = document.createElement('img');
+        emptyImg.src = '/assets/cell.png';
+        emptyImg.style.width = '100%';
+        emptyImg.style.height = '100%';
+        emptyImg.style.opacity = '0.3';
+        cell.appendChild(emptyImg);
+      }
+      
+      gridContainer.appendChild(cell);
+    }
+  }
+  
+  dragContainer.appendChild(gridContainer);
+  outerContainer.appendChild(dragContainer);
+  boardContainer.appendChild(outerContainer);
+  
+  // 드래그 기능 추가
+  setupDraggableBoard(dragContainer);
+}
+
+// 보드 드래그 기능 설정
+// 보드 드래그 기능 설정
+function setupDraggableBoard(element) {
+  let isDragging = false;
+  let startX, startY;
+  let initialX = 0, initialY = 0;
+  let currentX = 0, currentY = 0;
+  
+  // 정확한 보드 크기 계산 (80px 셀 크기 기준)
+  const cellSize = 80;
+  const gapSize = 2;
+  const boardWidth = 22 * cellSize + 21 * gapSize;
+  const boardHeight = 22 * cellSize + 21 * gapSize;
+  
+  // 부모 요소의 크기
+  const parentWidth = element.parentElement.offsetWidth;
+  const parentHeight = element.parentElement.offsetHeight;
+  
+  // 초기 위치 설정 - 중앙 정렬
+  currentX = (parentWidth - boardWidth) / 2;
+  currentY = (parentHeight - boardHeight) / 2;
+  
+  updatePosition();
+  
+  // 마우스 이벤트 리스너
+  element.addEventListener('mousedown', dragStart);
+  document.addEventListener('mousemove', drag);
+  document.addEventListener('mouseup', dragEnd);
+  
+  // 터치 이벤트 리스너 (모바일 지원)
+  element.addEventListener('touchstart', dragStart);
+  document.addEventListener('touchmove', drag);
+  document.addEventListener('touchend', dragEnd);
+  
+  // 드래그 시작
+  function dragStart(e) {
+    e.preventDefault();
+    
+    if (e.type === 'touchstart') {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    } else {
+      startX = e.clientX;
+      startY = e.clientY;
+    }
+    
+    initialX = currentX;
+    initialY = currentY;
+    isDragging = true;
+    
+    // 드래그 시작 시 커서 변경
+    element.style.cursor = 'grabbing';
+  }
+  
+  // 드래그 중
+  function drag(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    
+    let currentPosX, currentPosY;
+    
+    if (e.type === 'touchmove') {
+      currentPosX = e.touches[0].clientX;
+      currentPosY = e.touches[0].clientY;
+    } else {
+      currentPosX = e.clientX;
+      currentPosY = e.clientY;
+    }
+    
+    // 이동 거리 계산
+    const deltaX = currentPosX - startX;
+    const deltaY = currentPosY - startY;
+    
+    currentX = initialX + deltaX;
+    currentY = initialY + deltaY;
+    
+    // 범위 제한 - 적어도 보드의 20%는 항상 화면에 보이게 설정
+    const minVisiblePortion = 0.2;
+    const minX = -(boardWidth - (parentWidth * minVisiblePortion));
+    const maxX = parentWidth * (1 - minVisiblePortion);
+    const minY = -(boardHeight - (parentHeight * minVisiblePortion));
+    const maxY = parentHeight * (1 - minVisiblePortion);
+    
+    // 범위 제한 적용 (더 자유롭게)
+    currentX = Math.max(Math.min(currentX, maxX), minX);
+    currentY = Math.max(Math.min(currentY, maxY), minY);
+    
+    updatePosition();
+  }
+  
+  // 드래그 종료
+  function dragEnd() {
+    isDragging = false;
+    initialX = currentX;
+    initialY = currentY;
+    
+    // 드래그 종료 시 커서 복원
+    element.style.cursor = 'move';
+  }
+  
+  // 위치 업데이트
+  function updatePosition() {
+    element.style.transform = `translate(${currentX}px, ${currentY}px)`;
+  }
+}
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
