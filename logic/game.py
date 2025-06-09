@@ -349,7 +349,7 @@ class Game:
                             workerPlayerCount -= 1
                             
                             print(f"{worker}에게 {MaxGold} 금이 배분되었습니다.")
-                            self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": MaxGold,"players":newPlayers}})
+                            self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": MaxGold}})
                 elif winner == "saboteur":
                     # 기존 saboteur 코드는 유지
                     saboteurs = [player for player in self.players if self.players[player].role == "saboteur"]
@@ -386,14 +386,7 @@ class Game:
         response = self.tasks.copy()
         self.tasks.clear()
         return response
-    
-        """
-                
-[게임 업데이트] {"player":"1","target":"all","type":"path","data":{"x":8,"y":12,"card":3,"reverse":false},"id":1456,"room":"PIXJ"}
-[게임 업데이트] {"player":"d","target":"all","type":"round_end","data":{"winner":"worker","roles":{"1":"worker","2":"saboteur","d":"worker"}},"id":1457,"room":"PIXJ"}
-[비공개 업데이트] {"player":"d","target":"1","type":"getGold","data":{"gold":3},"id":1458}
-[게임 업데이트] {"player":"d","target":"all","type":"game_end","data":{"rank":{"1":4,"2":3,"d":3}},"id":1460,"room":"PIXJ"}
-[공지] 방이 가득 찼습니다! 15초 후에 게임이 자동으로 시작됩니다."""
+
     def _drawCard(self):
         # 카드 뽑기
         if len(self.cards) > 0:
