@@ -331,11 +331,15 @@ class Game:
                 workerPlayerCount = len([player for player in self.players if self.players[player].role == "worker"])
                 # worker 승리 골드 분배 로직
 
+                # currentPlayer을 다시 앞으로 한명 보내기
+                currnetPlayerIndex = list(self.players.keys()).index(self.currentPlayer)
+                newPlayers = list(self.players.keys())[currnetPlayerIndex+1:] + list(self.players.keys())[:currnetPlayerIndex+1]
+                workers = [player for player in newPlayers if self.players[player].role == "worker"][::-1]            
+                
+                # 기존 saboteur 코드는 유지
+                saboteurs = [player for player in self.players if self.players[player].role == "saboteur"]
+                        
                 if winner == "worker":
-                    # currentPlayer을 다시 앞으로 한명 보내기
-                    currnetPlayerIndex = list(self.players.keys()).index(self.currentPlayer)
-                    newPlayers = list(self.players.keys())[currnetPlayerIndex+1:] + list(self.players.keys())[:currnetPlayerIndex+1]
-                    workers = [player for player in newPlayers if self.players[player].role == "worker"][::-1]                    
                     # worker가 있는 경우 골드 분배
                     for worker in workers:  # 역순으로 worker에게 배분
                         if len(self.goldCard) > 0:
@@ -349,10 +353,11 @@ class Game:
                             
                             print(f"{worker}에게 {MaxGold} 금이 배분되었습니다.")
                             self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": MaxGold}})
+                    for saboteur in saboteurs:
+                        # 사보타주어에게는 금을 배분하지 않음
+                        print(f"{saboteur}는 금을 받지 않습니다.")
+                        self.tasks.append({"player": self.currentPlayer, "target": saboteur, "type": "getGold", "data": {"gold": 0}})
                 elif winner == "saboteur":
-                    # 기존 saboteur 코드는 유지
-                    saboteurs = [player for player in self.players if self.players[player].role == "saboteur"]
-                    
                     # 각 사보타주어에게 골드 배분
                     for saboteur in saboteurs:
                         lenPlayer = len(self.players)
@@ -371,6 +376,10 @@ class Game:
                         self.players[saboteur].addGold(currentGold)
                         self.tasks.append({"player": self.currentPlayer, "target": saboteur, "type": "getGold", "data": {"gold": currentGold}})
                         # 인원에 따라 고
+                    for worker in workers:
+                        # worker에게는 금을 배분하지 않음
+                        print(f"{worker}는 금을 받지 않습니다.")
+                        self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": 0}})
                 if self.currentRound == 3:
                     # 금 개수로 순위 매기기
                     golds = {player: self.players[player].gold for player in self.players}
