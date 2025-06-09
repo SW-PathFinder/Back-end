@@ -1,5 +1,6 @@
 import os
 import requests
+from dotenv import load_dotenv
 from flask import Flask, request
 from flask_cors import CORS
 import urllib3
@@ -9,18 +10,21 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
+load_dotenv()
+
 # Enable CORS support
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Load env variables
-SERVER_PORT = os.environ.get("SERVER_PORT",3001)
+SERVER_PORT = os.environ.get("SERVER_PORT", 3001)
 # SERVER_PORT
 # OPENVIDU_URL = os.environ.get("OPENVIDU_URL")
 # OPENVIDU_SECRET = os.environ.get("OPENVIDU_SECRET")
-OPENVIDU_URL="https://13.125.231.212:4443/"
-OPENVIDU_SECRET="VidU_3xS7_kEy9-Z1"
-SESSION_TIMEOUT_MINUTES=60
-OPENVIDU_VERIFY_SSL=False
+OPENVIDU_URL = "https://13.125.231.212:4443/"
+OPENVIDU_SECRET = os.getenv("OPENVIDU_SECRET")
+SESSION_TIMEOUT_MINUTES = 60
+OPENVIDU_VERIFY_SSL = False
+
 
 @app.route("/api/sessions", methods=['POST'])
 def initializeSession():
@@ -57,7 +61,8 @@ def createConnection(sessionId):
 
 if __name__ == "__main__":
     import ssl
+
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
     # crt,key 파일 경로 설정
     ssl_context.load_cert_chain(certfile='./SSL/openvidu-selfsigned.crt', keyfile='./SSL/openvidu-selfsigned.key')
-    app.run(debug=True, host="0.0.0.0", port=3001, ssl_context = ssl_context)
+    app.run(debug=True, host="0.0.0.0", port=3001, ssl_context=ssl_context)
