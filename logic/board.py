@@ -143,7 +143,7 @@ class Board:
             if 4 in path and 0 not in path:
                 self.path.add_edge((x,y),(x,y-1))
         # print("cardpath" )
-        self.path.nodes[(x,y)]['active'] = 0 not in card.path
+        self.path.nodes[(x,y)]['active'] = all(0 not in path_tuple for path_tuple in card.path)
         # print(self.path.edges)
     def removeNetwork(self, x,y,card):
         for i,j in filter(lambda x: x[0] == (10,7) or x[1] == (10,7), self.path.edges):
