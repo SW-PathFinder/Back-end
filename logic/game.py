@@ -212,7 +212,7 @@ class Game:
                     # print("Result : ",result)
                     if result == True:
                         # 경로 추가 성공
-                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"path","data":{"x":x,"y":y,"card":card.num,"reverse":card.flip}})
+                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"path","data":{"handNum":handNum,"x":x,"y":y,"card":card.num,"reverse":card.flip}})
                         self._useCard(handNum)
                         self._nextTrun()
                     else:
@@ -227,7 +227,7 @@ class Game:
                     result = self.board.rockFail(x,y)
                     if result == True:
                         # 경로 추가 성공
-                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"rockFail","data":{"x":x,"y":y}})
+                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"rockFail","data":{"handNum":handNum,"x":x,"y":y}})
                         self._useCard(handNum)
                         self._nextTrun()
                     else:
@@ -242,7 +242,7 @@ class Game:
                     result = self.players[target].setLimit(actionType)
                     if result == True:
                         # 사보타주 성공
-                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"sabotage","data":{"player":self.currentPlayer,"target":target,"cardType":actionType}})
+                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"sabotage","data":{"handNum":handNum,"player":self.currentPlayer,"target":target,"cardType":actionType}})
                         self._useCard(handNum)
                         self._nextTrun()
                     else:
@@ -257,7 +257,7 @@ class Game:
                     result = self.players[target].repairLimit(actionType,tool)
                     if result[0] == True:
                         # 수리 성공
-                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"repair","data":{"player":self.currentPlayer,"target":target,"cardType":result[1]}})
+                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"repair","data":{"handNum":handNum,"player":self.currentPlayer,"target":target,"cardType":result[1]}})
                         self._useCard(handNum)
                         self._nextTrun()
                     else:
@@ -272,7 +272,7 @@ class Game:
                     result = self.board.viewMap(x,y)
                     if result[0] == True:
                         # 맵 보기 성공
-                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"viewMap","data":{"player":self.currentPlayer,"target":(x,y)}})
+                        self.tasks.append({"player":self.currentPlayer,"target":"all","type":"viewMap","data":{"handNum":handNum,"player":self.currentPlayer,"target":(x,y)}})
                         self.tasks.append({"player":self.currentPlayer,"target":player,"type":"revealDest","data":{"x":x,"y":y,"cardType":result[1]}})
                         self._useCard(handNum)
                         self._nextTrun()
@@ -295,7 +295,7 @@ class Game:
                     if card.type == "path":
                         # 경로 뒤집기
                         card.reversePathCard()
-                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"reversePath","data":{"card":card.num}})
+                        self.tasks.append({"player":self.currentPlayer,"target":player,"type":"reversePath","data":{"handNum":handNum,"card":card.num}})
                     else:
                         self.tasks.append({"player":"server","target":player,"type":"error","data":"행동카드는 회전이 불가능합니다."})
         else:
