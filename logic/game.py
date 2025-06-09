@@ -321,22 +321,23 @@ class Game:
                     endPosition = end[2]
                     self.tasks.append({"player":self.currentPlayer,"target":"all","type":"round_end","data":{"winner":"saboteur","roles":{player:self.players[player].role for player in self.players}}})
             elif endType == "gold" or checkNoneCard:
+                self._aboveTrun()
                 winner = "worker" if endType == "gold" else "saboteur"
-                # self.tasks.append({"player":self.currentPlayer,"target":"all","type":"gold_found","data":endPosition})
-                self.tasks.append({"player":self.currentPlayer,"target":"all","type":"round_end","data":{"winner":winner,'roles':{player:self.players[player].role for player in self.players}}})
-                # self.tasks에서 type이 drawCard,turn_change는 삭제
+                
+                self.tasks.append({"player":self.currentPlayer,"target":"all","type":"round_end","data":{"winner":winner,'roles':{player:self.players[player].role for player in self.players},"currentPlayer":self.currentPlayer}})
+                
                 self.tasks = [task for task in self.tasks if task["type"] not in ["drawCard", "turn_change"]]
                 # 금 배분
                 # worker 수 추출
                 workerPlayerCount = len([player for player in self.players if self.players[player].role == "worker"])
                 # worker 승리 골드 분배 로직
+
                 if winner == "worker":
                     # currentPlayer을 다시 앞으로 한명 보내기
-                    newPlayers = list(self.players.keys())[::-1]
-                    print(newPlayers)
-                    workers = [player for player in newPlayers if self.players[player].role == "worker"]                    
+                    currnetPlayerIndex = list(self.players.keys()).index(self.currentPlayer)
+                    newPlayers = list(self.players.keys())[currnetPlayerIndex+1:] + list(self.players.keys())[:currnetPlayerIndex+1]
+                    workers = [player for player in newPlayers if self.players[player].role == "worker"][::-1]                    
                     # worker가 있는 경우 골드 분배
-                    print(f"self.players : {self.players}")
                     for worker in workers:  # 역순으로 worker에게 배분
                         if len(self.goldCard) > 0:
                             # 남은 금 중 가장 큰 것을 배분
@@ -348,7 +349,7 @@ class Game:
                             workerPlayerCount -= 1
                             
                             print(f"{worker}에게 {MaxGold} 금이 배분되었습니다.")
-                            self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": MaxGold}})
+                            self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": MaxGold,"players":newPlayers}})
                 elif winner == "saboteur":
                     # 기존 saboteur 코드는 유지
                     saboteurs = [player for player in self.players if self.players[player].role == "saboteur"]
@@ -418,7 +419,14 @@ class Game:
         self.current_index %= len(self.players)
         self.currentPlayer = list(self.players.keys())[self.current_index]
         self.tasks.append({"player":self.currentPlayer,"target":"all","type":"turn_change","data":self.currentPlayer})
-
+    def _aboveTrun(self):
+        # 이전 턴으로 돌아감
+        self.current_index = list(self.players.keys()).index(self.currentPlayer)
+        self.current_index -= 1
+        if self.current_index < 0:
+            self.current_index = len(self.players) - 1
+        self.currentPlayer = list(self.players.keys())[self.current_index]
+        # self.tasks.append({"player":self.currentPlayer,"target":"all","type":"turn_change","data":self.currentPlayer})
     def _shuffuleCards(self):
         # 카드 섞기
         self.cardIndexes = [1]*4 + [2]*5 + [3]*5 + [4]*5 + [5]*3 + [6]*4 + [7]*5 + [8]*1 + [9]*1 + [10]*1 + [11]*1 + [12]*1 + [13]*1 + [14]*1 + [15]*1 + [16]*1 + [17]*3 + [18]*3 + [19]*3 + [20]*2 + [21]*2 + [22]*2 + [23] + [24] + [25] + [26]*6 + [27]*3
