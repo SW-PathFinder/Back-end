@@ -164,7 +164,7 @@ class Game:
             card : Card = self.players[player].hand[handNum]
             if card.type == "path":
                 card.reversePathCard()
-                self.tasks.append({"player":self.currentPlayer,"target":player,"type":"reversePath","data":{"card":card.num}})
+                self.tasks.append({"player":self.currentPlayer,"target":player,"type":"reversePath","data":{"handNum":handNum,"card":card.num}})
             else:
                 self.tasks.append({"player":"server","target":player,"type":"error","data":"행동카드는 회전이 불가능합니다."})
            
