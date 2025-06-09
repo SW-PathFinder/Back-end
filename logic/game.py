@@ -2,7 +2,7 @@ from logic.board import Board
 from logic.player import Player
 from itertools import cycle
 from logic.card import Card , card_image_mapping
-from typing import Dict, List, Tuple , Any
+from typing import Dict, List, Tuple , Any, cast
 import random
 class Game:
     def __init__(self):
@@ -12,6 +12,7 @@ class Game:
         ### SABOTEAUR
         self.board = Board(self)
         self.cards: List[Card] = []
+        self.graveyard: List[Card] = []  # 사용한 카드 모음
         self.goldCard = []
         self.currentPlayer = ""  # 현재 플레이어의 인덱스
         self.currentRound = 0   # 현재 라운드
@@ -25,6 +26,7 @@ class Game:
         self.status = "ready"
         # self.board = Board(self)  # 보드 객체 초기화
         self.cards = []
+        self.graveyard = []
         self.goldCard = []
         self.cardIndexes = []
         self.roles = []  # 플레이어 역할 리스트
@@ -55,6 +57,7 @@ class Game:
         print("Board reset")
         self.board = Board(self)
         self.cards = []
+        self.graveyard = []
         for player in self.players.values():
             player.hand = []
             player.role = "worker"
@@ -135,13 +138,12 @@ class Game:
             print("EndTime이 실행되었습니다. ")
             self.tasks.append({"player":self.currentPlayer,"target":"all","type":"endTime","data":{}})
             result = self.players[self.currentPlayer].discard(handNum=0)
-            if result:
+            if result[0]:
+                self.graveyard.append(cast(Card, result[1]))
                 # 카드 버리기 성공
                 self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":0}})
                 result = self._drawCard()
-
                 if result[0]:
-
                     self.tasks.append({"player":self.currentPlayer,"target":self.currentPlayer,"type":"drawCard","data":{"card":result[1].num}})
                 else:
                     self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
@@ -162,7 +164,7 @@ class Game:
             card : Card = self.players[player].hand[handNum]
             if card.type == "path":
                 card.reversePathCard()
-                self.tasks.append({"player":self.currentPlayer,"target":player,"type":"reversePath","data":{"card":card.num}})
+                self.tasks.append({"player":self.currentPlayer,"target":player,"type":"reversePath","data":{"handNum":handNum,"card":card.num}})
             else:
                 self.tasks.append({"player":"server","target":player,"type":"error","data":"행동카드는 회전이 불가능합니다."})
            
@@ -279,8 +281,9 @@ class Game:
                         self.tasks.append({"player":"server","target":player,"type":"error","data":result[1]})
                 case "discard": # action = {"type":"drawCard","data":{handNum:0-5}}
                     result = self.players[player].discard(handNum)
-                    if result:
+                    if result[0]:
                         # 카드 버리기 성공
+                        self.graveyard.append(cast(Card, result[1]))
                         self.tasks.append({"player":self.currentPlayer,"target":"all","type":"discard","data":{"handNum":handNum}})
                         result = self._drawCard()
                         if result[0]:
@@ -331,11 +334,15 @@ class Game:
                 workerPlayerCount = len([player for player in self.players if self.players[player].role == "worker"])
                 # worker 승리 골드 분배 로직
 
+                # currentPlayer을 다시 앞으로 한명 보내기
+                currnetPlayerIndex = list(self.players.keys()).index(self.currentPlayer)
+                newPlayers = list(self.players.keys())[currnetPlayerIndex+1:] + list(self.players.keys())[:currnetPlayerIndex+1]
+                workers = [player for player in newPlayers if self.players[player].role == "worker"][::-1]            
+                
+                # 기존 saboteur 코드는 유지
+                saboteurs = [player for player in self.players if self.players[player].role == "saboteur"]
+                        
                 if winner == "worker":
-                    # currentPlayer을 다시 앞으로 한명 보내기
-                    currnetPlayerIndex = list(self.players.keys()).index(self.currentPlayer)
-                    newPlayers = list(self.players.keys())[currnetPlayerIndex+1:] + list(self.players.keys())[:currnetPlayerIndex+1]
-                    workers = [player for player in newPlayers if self.players[player].role == "worker"][::-1]                    
                     # worker가 있는 경우 골드 분배
                     for worker in workers:  # 역순으로 worker에게 배분
                         if len(self.goldCard) > 0:
@@ -349,10 +356,11 @@ class Game:
                             
                             print(f"{worker}에게 {MaxGold} 금이 배분되었습니다.")
                             self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": MaxGold}})
+                    for saboteur in saboteurs:
+                        # 사보타주어에게는 금을 배분하지 않음
+                        print(f"{saboteur}는 금을 받지 않습니다.")
+                        self.tasks.append({"player": self.currentPlayer, "target": saboteur, "type": "getGold", "data": {"gold": 0}})
                 elif winner == "saboteur":
-                    # 기존 saboteur 코드는 유지
-                    saboteurs = [player for player in self.players if self.players[player].role == "saboteur"]
-                    
                     # 각 사보타주어에게 골드 배분
                     for saboteur in saboteurs:
                         lenPlayer = len(self.players)
@@ -371,6 +379,10 @@ class Game:
                         self.players[saboteur].addGold(currentGold)
                         self.tasks.append({"player": self.currentPlayer, "target": saboteur, "type": "getGold", "data": {"gold": currentGold}})
                         # 인원에 따라 고
+                    for worker in workers:
+                        # worker에게는 금을 배분하지 않음
+                        print(f"{worker}는 금을 받지 않습니다.")
+                        self.tasks.append({"player": self.currentPlayer, "target": worker, "type": "getGold", "data": {"gold": 0}})
                 if self.currentRound == 3:
                     # 금 개수로 순위 매기기
                     golds = {player: self.players[player].gold for player in self.players}
@@ -395,7 +407,9 @@ class Game:
         else:
             return False, "모든 패가 소진되었습니다."
     def _useCard(self, handNum:int):
-        if self.players[self.currentPlayer].discard(handNum):
+        result = self.players[self.currentPlayer].discard(handNum)
+        if result[0]:
+            self.graveyard.append(cast(Card, result[1]))
             result = self._drawCard()
             if result[0]:
                 # 카드 뽑기 성공            
@@ -495,15 +509,15 @@ class Game:
             player.gold = 0
         pass
 
-
     def getPlayerState(self, player):
         return {
-                "round": self.currentRound,
-                "gold": self.players[player].gold,
-                "role": self.players[player].role,
-                "hands": [{"cardId": card.num, "reverse": card.flip==True,"type":card.type} for card in self.players[player].hand],
-                "currentPlayerId": self.currentPlayer,
-                "board": [{"x": x, "y": y, "cardId": self.board.board[x, y].num if self.board.board[x,y].num not in  (-2,-4,-6) else -8 , "reverse": self.board.board[x, y].flip == True} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0],
-                "deckCount": len(self.cards),
-                "players": [{"playerId": p.name, "tool": p.limit, "handCount": len(p.hand)} for p in self.players.values()]
-            }
+            "round": self.currentRound,
+            "gold": self.players[player].gold,
+            "role": self.players[player].role,
+            "hands": [{"cardId": card.num, "reverse": card.flip==True,"type":card.type} for card in self.players[player].hand],
+            "currentPlayerId": self.currentPlayer,
+            "board": [{"x": x, "y": y, "cardId": self.board.board[x, y].num if self.board.board[x,y].num not in  (-2,-4,-6) else -8 , "reverse": self.board.board[x, y].flip == True} for x in range(22) for y in range(22) if self.board.board[x, y].num != 0],
+            "deckCount": len(self.cards),
+            "players": [{"playerId": p.name, "tool": p.limit, "handCount": len(p.hand)} for p in self.players.values()],
+            "cardUsed": [card.num for card in self.graveyard],
+        }

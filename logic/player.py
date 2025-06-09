@@ -54,7 +54,7 @@ class Player:
         # 손패에서 카드를 버리는 로직
         if handNum < len(self.hand):
             card = self.hand.pop(handNum)
-            return card
+            return True, card
         else:
             return False, "잘못된 카드 번호입니다."
     def drawCard(self, card):
