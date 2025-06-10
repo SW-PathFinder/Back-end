@@ -118,6 +118,7 @@ function leaveSession() {
     // Back to 'Join session' page
     document.getElementById('join').style.display = 'block';
     document.getElementById('session').style.display = 'none';
+        document.getElementById('session').style.height = '1px';
 
     enableBtn();
 }

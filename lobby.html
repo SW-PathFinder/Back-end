@@ -471,7 +471,7 @@
           if (savedUsername ==="server") {
             window.location.href = `client-server.html?room=${data.room.room_id}`;
           }
-          else if (savedUsername ==="client") {
+          else if (savedUsername !="server") {
             window.location.href = `client.html?room=${data.room.room_id}`;
           }
         } else {
