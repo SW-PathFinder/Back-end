@@ -549,6 +549,15 @@ async def game_action(sid, data):
             responses = result
         else:
             responses = []
+    
+        if any(res.get("type") == "turn_change" for res in responses):
+                # 방에서 턴 타이머 시작
+                game_room = game_rooms.get(room)
+                if game_room and game_room.is_started:
+                    current_player = game.currentPlayer
+                    if current_player:
+                        # 30초 타이머 시작
+                        await game_room.start_turn_timer(current_player, TURN_TIMER_DURATION)
 
     except Exception as exc:
         await send_private(player, "error", {"requestId":requestID,"message": str(exc)})
