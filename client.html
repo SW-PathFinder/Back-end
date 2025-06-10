@@ -111,7 +111,7 @@
       </div>
     </div>    <!-- 로그 -->
     <div id="toast-container" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999;"></div>
-    <div class="card" hidden>
+    <div class="card" >
       <h3 >게임 로그</h3>
       <div id="log"></div>
     </div>
@@ -160,10 +160,10 @@
 		<div id="session" style="display: none; height : 1px;">
 			<div id="session-header">
 				<h1 id="session-title" hidden></h1>
-				<input class="btn btn-large btn-danger" hidden type="button" id="buttonLeaveSession" onmouseup="leaveSession()" value="Leave session">
+				<input class="btn btn-large btn-danger" style="height: 1px;" hidden type="button" id="buttonLeaveSession" onmouseup="leaveSession()" value="Leave session">
 			</div>
-			<div id="main-video" class="col-md-6" style="height: 1px;"><p></p><video autoplay playsinline="true"></video></div>
-			<div id="video-container" class="col-md-6"></div>
+			<div id="main-video" class="col-md-6" style="height: 1px;"><p></p><video autoplay playsinline="true" style="height: 1px;" ></video></div>
+			<div id="video-container" class="col-md-6" style="height: 1px;"></div>
 		</div>
 	</div>
     
@@ -423,11 +423,11 @@
       
       // 카운트다운 이벤트
       socket.on('countdown_started', (data) => {
-        log(`[공지] 방이 가득 찼습니다! ${data.seconds}초 후에 게임이 자동으로 시작됩니다.`);
+        showToast(`방이 가득 찼습니다! ${data.seconds}초 후에 게임이 자동으로 시작됩니다.`,"info",1);
       });
       
       socket.on('countdown_tick', (data) => {
-        log(`[카운트다운] 게임 시작까지 ${data.seconds_left}초...`);
+        showToast(`게임 시작까지 ${data.seconds_left}초...`,"info",1);
       });
       
       socket.on('game_started', (data) => {
@@ -483,14 +483,23 @@
                 // {player:self.players[player].role for player in self.players}
                 console.log("################################################")
                 showToast(`[라운드 종료] ${data.data.winner}가 승리하였습니다.`, 'info',10);
-                // 화면 가운데 일시적으로 박스가 나오고 플레이어 역할 표시
-
-                showToast(`[플레이어 역할] ${data.data.roles.map(([player, role]) => `${player}: ${role}`).join('\n')}`, 'info',10);
-                console.log(`[플레이어 역할] ${data.data.roles.map(([player, role]) => `${player}: ${role}`).join('\n')}`);
+                showRolesModal(data.data.roles);
+                // console.log(`[플레이어 역할] ${data.data.roles.map(([player, role]) => `${player}: ${role}`).join('\n')}`);
                 break;
-
-            }
-            
+              case 'game_end':
+                showRolesModal(null, data.data.rank);
+                return
+              case 'countdown_tick':
+                console.log(`[카운트다운] 게임 시작까지 ${data.data.seconds_left}초...`);
+                break;
+              case "turn_timer_update":
+                // 현재 플레이어와 남은 시간 표시
+                // console.log(`[턴 타이머] ${data.data.current_player}님의 턴 - 남은 시간: ${data.data.remaining_time}초`);
+                showToast(`${data.current_player}님의 턴 - 남은 시간: ${data.remaining_time}초`, 'info',1);
+                break;
+              }
+//             [게임 업데이트] {"player":"바위","target":"all","type":"round_end","data":{"winner":"saboteur","roles":{"바위":"worker","게스트_4610":"saboteur","게스트_5405":"worker"}},"id":1436,"room":"ANDO"}
+// [게임 업데이트] {"player":"바위","target":"all","type":"game_end","data":{"rank":{"바위":4,"게스트_4610":4,"게스트_5405":0}},"id":1438,"room":"ANDO"}
       });      
       
       socket.on('private_game_update', (data) => {
@@ -563,6 +572,14 @@
       // 채팅 이벤트
       socket.on('chat', (data) => {
         log(`[채팅] ${data.username}: ${data.message}`);
+        if (data.message.includes("턴 - 남은 시간:")) {
+          // 현재 플레이어의 턴 메시지인 경우
+          showToast(`${data.message}`, 'info', 1);
+        }
+        else {
+          // 일반 채팅 메시지
+          showToast(`${data.username}: ${data.message}`, 'chat');
+        }
       });
 
       // 오류 처리
@@ -879,6 +896,7 @@
             tool:card.tool
           }));
           e.dataTransfer.effectAllowed = 'move';
+          
           addTouchEventListeners(cardImg, card, index);
         });
     }
@@ -1360,7 +1378,7 @@ function setupDraggableBoard(element, viewState = null) {
   });
 }
 // 토스트 알림 표시 함수
-  function showToast(message, type = 'error', duration = 6) {
+  function showToast(message, type = 'error', duration = 5) {
     // 토스트 컨테이너 요소
     const container = document.getElementById('toast-container');
     
@@ -1403,8 +1421,189 @@ function setupDraggableBoard(element, viewState = null) {
     }, duration*1000);
   }
 
+  // 플레이어 역할을 표시하는 모달 창 함수
+  // 전역 변수로 마지막 역할/점수 데이터 저장
+let lastRolesData = null;
+let lastRankData = null;
 
-
+// 플레이어 역할과 점수를 표시하는 모달 창 함수
+function showRolesModal(roles = null, rank = null) {
+  // 새로운 데이터가 들어오면 전역 변수 업데이트
+  if (roles) lastRolesData = roles;
+  if (rank) lastRankData = rank;
+  
+  // 역할 정보가 없으면 표시할 수 없음
+  if (!lastRolesData) return;
+  
+  // 기존 모달이 있으면 제거
+  const existingModal = document.getElementById('roles-modal');
+  if (existingModal) {
+    document.body.removeChild(existingModal);
+  }
+  
+  // 모달 컨테이너 생성
+  const modal = document.createElement('div');
+  modal.id = 'roles-modal';
+  modal.style.position = 'fixed';
+  modal.style.top = '50%';
+  modal.style.left = '50%';
+  modal.style.transform = 'translate(-50%, -50%) scale(0.8)';
+  modal.style.backgroundColor = 'white';
+  modal.style.padding = '20px';
+  modal.style.borderRadius = '10px';
+  modal.style.boxShadow = '0 5px 30px rgba(0, 0, 0, 0.3)';
+  modal.style.zIndex = '10000';
+  modal.style.maxWidth = '90%';
+  modal.style.width = '400px';
+  modal.style.opacity = '0';
+  modal.style.transition = 'all 0.3s ease';
+  
+  // 헤더 추가
+  const header = document.createElement('h2');
+  header.textContent = lastRankData ? '게임 종료 - 최종 결과' : '라운드 종료 - 플레이어 역할';
+  header.style.textAlign = 'center';
+  header.style.borderBottom = '1px solid #eee';
+  header.style.paddingBottom = '10px';
+  header.style.margin = '0 0 15px 0';
+  modal.appendChild(header);
+  
+  // 역할 목록 컨테이너
+  const rolesList = document.createElement('div');
+  rolesList.style.maxHeight = '300px';
+  rolesList.style.overflowY = 'auto';
+  
+  // 내 이름을 맨 뒤로, 상대순서는 유지
+  const sortedPlayers = Object.keys(lastRolesData).sort((a, b) => {
+    // 내 이름은 항상 맨 뒤로
+    if (a === username) return 1;
+    if (b === username) return -1;
+    
+    // 점수가 있는 경우 점수 높은 순으로 정렬
+    if (lastRankData) {
+      return (lastRankData[b] || 0) - (lastRankData[a] || 0); // 내림차순 정렬
+    }
+    return 0;
+  });
+  
+  // 정렬된 플레이어 배열로 역할 표시
+  sortedPlayers.forEach(player => {
+    const role = lastRolesData[player];
+    const playerScore = lastRankData ? lastRankData[player] : null;
+    
+    const playerItem = document.createElement('div');
+    playerItem.style.display = 'flex';
+    playerItem.style.justifyContent = 'space-between';
+    playerItem.style.alignItems = 'center';
+    playerItem.style.padding = '10px 15px';
+    playerItem.style.margin = '5px 0';
+    playerItem.style.borderRadius = '5px';
+    playerItem.style.fontWeight = 'bold';
+    
+    // 자신인 경우 특별 강조
+    if (player === username) {
+      playerItem.style.border = '2px solid gold';
+    }
+    
+    // 역할에 따라 배경색 설정
+    if (role === 'worker') {
+      playerItem.style.backgroundColor = '#e3f2fd'; // 파란색 배경 (일꾼)
+      playerItem.style.color = '#1565c0';
+    } else if (role === 'saboteur') {
+      playerItem.style.backgroundColor = '#ffebee'; // 빨간색 배경 (방해꾼)
+      playerItem.style.color = '#c62828';
+    }
+    
+    // 왼쪽: 플레이어 이름과 역할 아이콘
+    const leftSection = document.createElement('div');
+    leftSection.style.display = 'flex';
+    leftSection.style.alignItems = 'center';
+    leftSection.style.gap = '8px';
+    
+    // 역할 아이콘
+    const roleIcon = document.createElement('span');
+    roleIcon.style.fontSize = '18px';
+    roleIcon.textContent = role === 'worker' ? '👷‍♂️' : role === 'saboteur' ? '💣' : '❓';
+    leftSection.appendChild(roleIcon);
+    
+    // 플레이어 이름
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = player;
+    leftSection.appendChild(nameSpan);
+    
+    playerItem.appendChild(leftSection);
+    
+    // 오른쪽: 역할명과 점수(있는 경우)
+    const rightSection = document.createElement('div');
+    rightSection.style.textAlign = 'right';
+    
+    // 역할 텍스트
+    const roleSpan = document.createElement('div');
+    if (role === 'worker') {
+      roleSpan.textContent = '일꾼';
+    } else if (role === 'saboteur') {
+      roleSpan.textContent = '방해꾼';
+    } else {
+      roleSpan.textContent = role;
+    }
+    rightSection.appendChild(roleSpan);
+    
+    // 점수가 있는 경우 표시
+    if (playerScore !== null) {
+      const scoreSpan = document.createElement('div');
+      scoreSpan.textContent = `${playerScore} 골드`;
+      scoreSpan.style.fontWeight = 'bold';
+      scoreSpan.style.fontSize = '14px';
+      scoreSpan.style.color = '#ffa000';
+      rightSection.appendChild(scoreSpan);
+    }
+    
+    playerItem.appendChild(rightSection);
+    rolesList.appendChild(playerItem);
+  });
+  
+  modal.appendChild(rolesList);
+  
+  // 확인 버튼
+  const closeButton = document.createElement('button');
+  closeButton.textContent = '확인';
+  closeButton.style.display = 'block';
+  closeButton.style.margin = '20px auto 0';
+  closeButton.style.padding = '8px 20px';
+  closeButton.style.backgroundColor = '#3e62a8';
+  closeButton.style.color = 'white';
+  closeButton.style.border = 'none';
+  closeButton.style.borderRadius = '5px';
+  closeButton.style.cursor = 'pointer';
+  closeButton.onclick = () => {
+    closeRolesModal();
+  };
+  modal.appendChild(closeButton);
+  
+  // 모달을 body에 추가
+  document.body.appendChild(modal);
+  
+  // 애니메이션 효과
+  setTimeout(() => {
+    modal.style.opacity = '1';
+    modal.style.transform = 'translate(-50%, -50%) scale(1)';
+  }, 50);
+  
+  // 10초 후 자동으로 닫히도록 설정
+  setTimeout(() => {
+    closeRolesModal();
+  }, 10000);
+  
+  // 모달 닫기 함수
+  function closeRolesModal() {
+    modal.style.opacity = '0';
+    modal.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    setTimeout(() => {
+      if (modal.parentNode === document.body) {
+        document.body.removeChild(modal);
+      }
+    }, 300);
+  }
+}
 
 
 
@@ -1445,6 +1644,10 @@ function addTouchEventListeners(cardImg, card, index) {
     touchDragElement.style.width = '60px'; // 좀 더 작게 표시
     touchDragElement.style.height = '90px';
     touchDragElement.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+
+    if (card.reverse) {
+      touchDragElement.style.transform = 'rotate(180deg)';
+    }
     
     // 초기 위치 설정
     touchDragElement.style.left = (touch.clientX - 30) + 'px';

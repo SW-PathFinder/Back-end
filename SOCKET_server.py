@@ -32,7 +32,7 @@ MAXPLAYERCOUNT = 10  # 최대 플레이어 수
 TURN_TIMER_DURATION = 15  # 기본 턴 타이머 시간 (초)
 # ─────────────────────────  게임 세팅 ─────────────────────────
 # 잔여 시간 chat 보내기
-SEND_TIME_CHAT = False  # 잔여 시간 알림을 chat으로 보낼지 여부
+SEND_TIME_CHAT = True  # 잔여 시간 알림을 chat으로 보낼지 여부
 # ─────────────────────────  전역 저장소 ────────────────────────
 game_sessions: Dict[str, Game] = {}   # room_name → Game 인스턴스
 sid_to_user: Dict[str, str] = {}      # sid → username
@@ -109,7 +109,11 @@ class GameRoom:
                 # 10초, 5초, 3초, 2초, 1초일 때만 알림 (너무 많은 알림 방지)
                 if i in [10, 5, 3, 2, 1] and SEND_TIME_CHAT:
                     await chat("server", {"room": self.room_id, "message": '' + current_player + '님의 턴 - 남은 시간: ' + str(i) + '초'})
-                
+                    await broadcast(self.room_id, "turn_timer_update", {
+                        "current_player": current_player,
+                        "remaining_time": i,
+                        "message": f"{current_player}님의 턴 - 남은 시간: {i}초"
+                    })
                 await asyncio.sleep(1)
             
             # 타이머 종료 후 자동 턴 변경
@@ -819,6 +823,24 @@ async def process_chat_command(sid, room, username, message):
                     
                     # await send_private(username, "error", {"player":"server","message": "잘못된 명령어 형식입니다. 예: /changeCard player handNum cardType reverse=True/False"})
                     return
+            case "changecardcurrent":
+                game = get_game(room)
+                target = game.currentPlayer
+                handNum = 0
+                cardNum = int(parts[1])
+                game.players[target].hand[handNum] = Card(int(cardNum))
+                return
+            case "changeround":
+                round_num = int(parts[1])
+                game = get_game(room)
+                game.currentRound = round_num
+                return
+            case "clearcards":
+                game = get_game(room)
+                game.cards = []
+                for player in game.players.values():
+                    player.hand = player.hand[:1]
+                return
             case _:
                 # 알 수 없는 명령어
                 await send_private(username, "error", {"message": f"알 수 없는 명령어: {command}"})
