@@ -21,7 +21,7 @@ Django 기반의 사보타지 게임 백엔드 서버
 
 | Name        | 
 |-------------|
-| Doohyun Kim | 
+| Dohun Kim | 
 | Dami Lee    | 
 | Namhoon Cho  | 
 | Jiwoo Park  | 
