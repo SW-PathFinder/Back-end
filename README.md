@@ -21,7 +21,7 @@ Django 기반의 사보타지 게임 백엔드 서버
 
 | Name        | 
 |-------------|
-| Dohun Kim | 
+| Dohoon Kim | 
 | Dami Lee    | 
 | Namhoon Cho  | 
 | Jiwoo Park  | 
@@ -53,44 +53,22 @@ pip install -r requirements.txt
 
 ```env
 # ----------------------------
-# 🔐 Django 기본 설정
-# ----------------------------
-SECRET_KEY=
-DEBUG=true
-ALLOWED_HOSTS=localhost,127.0.0.1
-TIME_ZONE=Asia/Seoul
-
-# ----------------------------
 # 🔗 OpenVidu 연동 설정
 # ----------------------------
 OPENVIDU_URL=
 OPENVIDU_SECRET=
 SESSION_TIMEOUT_MINUTES=60
 OPENVIDU_VERIFY_SSL=false
-
-# ----------------------------
-# ⚙️ Django 실행 환경 설정 (선택)
-# ----------------------------
-DJANGO_SETTINGS_MODULE=config.settings.base
 ```
 
 ---
 
-## 🏃 서버 실행
+## 🏃 인증 서버 실행
 
 ```bash
-python manage.py runserver
+python /openvidu-basic-python/app.py
 ```
-
-→ 기본 접속 주소: [http://127.0.0.1:8000](http://127.0.0.1:8000)
-
----
-
-## 🔍 Swagger API 문서 확인
-
-→ 기본 접속 주소: [http://127.0.0.1:8000](http://127.0.0.1:8000)
-
----
+→ 기본 접속 주소: [http://127.0.0.1:3001](http://127.0.0.1:3001)
 
 ## 📡 OpenVidu 접근 방법
 
@@ -116,38 +94,45 @@ python SOCKET_server.py
 ## 📁 디렉토리 구조
 
 ```
-├── apps/                                 # Django 앱 디렉토리
-│   ├── logic/                            # 게임 핵심 로직 모듈 (룰, 처리 등)
-│   └── saboteur/                         # 사보타지 게임 관련 기능 구현
-│       ├── admin.py                      # Django admin 등록 설정
-│       ├── apps.py                       # 앱 설정 클래스
-│       ├── models.py                     # 게임 관련 데이터 모델 정의
-│       ├── urls.py                       # 게임 관련 URL 라우팅
-│       ├── views.py                      # 게임 API 핸들러
-│       └── voice_chat/                   # OpenVidu 기반 음성 채팅 기능 모듈
-│           ├── openvidu_client.py        # OpenVidu REST API 연동 함수
-│           ├── session_store.py          # 세션 상태를 관리하는 임시 저장소
-│           ├── urls.py                   # 음성 채팅 관련 URL 설정
-│           ├── views.py                  # 음성 채팅 API 처리 뷰
-│           └── tests/                    # 음성 채팅 관련 단위 테스트
-│               ├── __init__.py
-├── config/                               # Django 전체 프로젝트 설정
-│   └── settings/                         # 환경별 분리된 설정 모듈
-│       ├── __init__.py
-│       ├── asgi.py                       # ASGI 서버 설정 (WebSocket 등 비동기 대응)
-│       ├── urls.py                       # 프로젝트 루트 URL 라우팅
-│       └── wsgi.py                       # WSGI 서버 설정 (Gunicorn 등과 연동)
-├── templates/                            # Django 템플릿 디렉토리
-│   └── saboteur/
-│       ├── chat_room.html                # 채팅방 웹 페이지
-│       └── game_list.html                # 게임 목록 웹 페이지
-├── static/                               # 정적 파일 (JS, CSS, 이미지 등)
-├── manage.py                             # Django 명령행 실행 스크립트
-├── SOCKET_server.py                      # WebSocket 서버 실행용 스크립트
-├── requirements.txt                      # 프로젝트 Python 패키지 의존성 목록
-├── .env.example                          # 환경변수 예시 파일
-├── .gitignore                            # Git 추적 제외 파일 목록
-└── README.md                             # 프로젝트 설명 문서
+Back-end/
+├── 📁 logic/                           # 게임 핵심 로직 모듈
+│   ├── board.py                        # 게임 보드 관리 (카드 배치, 경로 검증)
+│   ├── card.py                         # 카드 클래스 및 카드 타입 정의
+│   ├── game.py                         # 게임 메인 로직 (플레이어 관리, 턴 처리)
+│   └── player.py                       # 플레이어 클래스 (역할, 손패, 도구 제한)
+│
+├── 📁 OldMaid/                         # 도둑잡기 게임 구현 (별도 게임)
+│   ├── __init__.py
+│   ├── card.py                         # 도둑잡기 카드 로직
+│   ├── deck.py                         # 덱 관리
+│   ├── game.py                         # 도둑잡기 게임 로직
+│   ├── gameTest.py                     # 게임 테스트 스크립트
+│   ├── oldMaidClient.html              # 도둑잡기 클라이언트 HTML
+│   ├── oldMaidLobby.html               # 도둑잡기 로비 HTML
+│   └── player.py                       # 도둑잡기 플레이어 클래스
+│
+├── 📁 openvidu-basic-python/           # OpenVidu 음성 채팅 서버
+│   ├── app.py                          # Flask 기반 OpenVidu API 서버
+│   ├── openvidu-selfsigned.crt         # SSL 인증서
+│   ├── openvidu-selfsigned.key         # SSL 개인키
+│   ├── README.md                       # OpenVidu 서버 설명서
+│   └── requirements.txt                # Python 의존성 목록
+│
+├── 📁 public/                          # 게임 리소스 (이미지, 아이콘)
+│
+├── 📁 SSL/                             # SSL 인증서 디렉토리
+│   ├── openvidu-selfsigned.crt
+│   └── openvidu-selfsigned.key
+│
+├── 📄 SOCKET_server.py                 # 메인 WebSocket 게임 서버 (Saboteur)
+├── 📄 oldMAid_SOCKET_server.py         # 도둑잡기 WebSocket 서버
+├── 📄 lobby.html                       # Saboteur 게임 로비 페이지
+├── 📄 client.html                      # Saboteur 게임 클라이언트 페이지
+├── 📄 client-server.html               # Saboteur 관리자용 클라이언트
+├── 📄 openvidu-browser-2.30.0.min.js   # OpenVidu 브라우저 라이브러리
+├── 📄 openvidu_app.js                  # OpenVidu 애플리케이션 스크립트
+├── 📄 requirements.txt                 # Python 패키지 의존성
+├── 📄 README.md                        # 프로젝트 메인 문서
 
 ```
 
@@ -157,21 +142,11 @@ python SOCKET_server.py
 
 | Tool / Library        | Description                           |
 |-----------------------|---------------------------------------|
-| Django                | 메인 백엔드 프레임워크                |
-| Django REST Framework | RESTful API 구성                       |
+| uvicorn                | 메인 백엔드 프레임워크                |
 | OpenVidu              | WebRTC 기반 음성 채팅 라이브러리       |
-| Channels       | WebSocket/비동기 처리를 위한 Django 확장 |
+| Socket.io       | WebSocket/비동기 처리를 위한 확장 |
 | python-dotenv         | `.env` 환경변수 로딩                   |
-| HTML Template         | 채팅방 및 대기실 페이지 제공           |
 | requests              | 외부 API 호출 (OpenVidu 연동 등)       |
-
----
-
-## 🧪 테스트 실행
-
-```bash
-python manage.py test
-```
 
 ---
 
@@ -179,11 +154,8 @@ python manage.py test
 
 | Command                        | Description                    |
 |-------------------------------|--------------------------------|
-| `python manage.py runserver`  | Django 개발 서버 실행          |
+| `python openvidu-basic-python/app.py`  | openvidu 인증서버 서버 실행          |
 | `python SOCKET_server.py`     | WebSocket 서버 실행            |
-| `python manage.py test`       | 유닛 테스트 실행               |
-| `python manage.py migrate`    | DB 마이그레이션                |
-| `python manage.py createsuperuser` | 관리자 계정 생성         |
 
 ---
 
@@ -203,16 +175,40 @@ This project is for internal use only.
 ---
 
 ## 🛠️ Tech Stack
+## 🛠️ 기술 스택 및 의존성
 
 | Tool / Library        | Version / Info                | Description                           |
 |-----------------------|-------------------------------|---------------------------------------|
-| Python                | ^3.9                          | 백엔드 언어                           |
-| Django                | ~4.2                          | 메인 백엔드 프레임워크                |
-| Django REST Framework | ^3.14                         | RESTful API 구성                       |
-| OpenVidu              | ^2.31                         | WebRTC 기반 음성 채팅 라이브러리       |
-| python-dotenv         | latest                        | `.env` 환경변수 로딩                   |
-| requests              | latest                        | OpenVidu 외부 API 호출용               |
-| HTML (Django Template)| -                             | 채팅방, 대기실 등 HTML 제공           |
-| SQLite (기본)         | 내장 DB                        | 개발용 데이터베이스                    |
-| Channels (선택사항)   | ^4.0                          | Django의 WebSocket 처리 확장           |
-| Gunicorn / Uvicorn    | 선택 시 사용                   | 운영 서버용 WSGI/ASGI 인터페이스       |
+| Python                | ^3.9                          | 백엔드 메인 언어                       |
+| Flask                 | ~2.1.2                        | OpenVidu API 서버 프레임워크           |
+| Flask-CORS            | ~3.0.10                       | CORS 정책 처리                        |
+| Socket.IO             | ^4.6.1                        | 실시간 양방향 통신                     |
+| python-socketio       | ^5.0                          | Python Socket.IO 서버 구현             |
+| uvicorn               | ^0.23                         | ASGI 서버 (WebSocket 서버용)           |
+| OpenVidu              | 2.30.0                        | WebRTC 기반 음성 채팅 라이브러리       |
+| NetworkX              | latest                        | 게임 보드 경로 검증용 그래프 라이브러리  |
+| requests              | ~2.28.0                       | OpenVidu 외부 API 호출용               |
+| python-dotenv         | ~0.20.0                       | `.env` 환경변수 관리                   |
+| urllib3               | latest                        | HTTP 클라이언트 (SSL 경고 처리)        |
+| pyOpenSSL             | ~22.0.0                       | SSL/TLS 암호화 지원                    |
+| Bootstrap             | 5.3.0                         | 프론트엔드 UI 프레임워크               |
+| Font Awesome          | 6.0.0                         | 아이콘 라이브러리                      |
+| HTML5 Canvas          | -                             | 게임 보드 렌더링                       |
+| JavaScript (ES6+)     | -                             | 클라이언트 사이드 로직                 |
+| SSL Certificate       | Self-signed                   | HTTPS/WSS 보안 연결                    |
+
+### 🔧 개발 도구
+| Tool                  | Purpose                       | Description                           |
+|-----------------------|-------------------------------|---------------------------------------|
+| Jupyter Notebook      | 게임 로직 테스트               | 대화형 게임 테스트 환경                |
+| VS Code               | 개발 환경                      | 통합 개발 환경                        |
+| Git                   | 버전 관리                      | 소스코드 버전 관리                     |
+
+### 🏗️ 아키텍처 구성 요소
+| Component             | Technology                    | Description                           |
+|-----------------------|-------------------------------|---------------------------------------|
+| WebSocket Server      | python-socketio + ASGI        | 실시간 게임 상태 동기화                |
+| Voice Chat Server     | Flask + OpenVidu API          | WebRTC 기반 음성 채팅 중계             |
+| Game Engine           | Pure Python + NetworkX       | Saboteur 게임 로직 처리                |
+| Static File Server    | Custom ASGI App               | HTML/CSS/JS 파일 서빙                  |
+| SSL/TLS               | Self-signed Certificate       | 보안 연결 (개발 환경)                  |
