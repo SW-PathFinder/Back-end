@@ -564,6 +564,15 @@ async def game_action(sid, data):
             responses = result
         else:
             responses = []
+        if any(res.get("type") == "game_end" for res in responses):
+            game_room = game_rooms.get(room)
+            # 현재 진행중인 카운트다운 태스크가 있다면 취소
+            if game_room and game_room.turn_timer_task:
+                await game_room.cancel_turn_timer()
+            if game_room:
+                game_room.is_started = False
+                # del game_room.game_sessions
+                game_rooms[room].countdown_task = asyncio.create_task(start_countdown(room,60))
     
         if any(res.get("type") == "turn_change" for res in responses):
                 # 방에서 턴 타이머 시작
@@ -651,10 +660,13 @@ async def process_json_command(sid, room, username, message):
         
         if any(res.get("type") == "game_end" for res in responses):
             game_room = game_rooms.get(room)
+            # 현재 진행중인 카운트다운 태스크가 있다면 취소
+            if game_room and game_room.turn_timer_task:
+                await game_room.cancel_turn_timer()
             if game_room:
                 game_room.is_started = False
                 # del game_room.game_sessions
-                game_rooms[room].countdown_task = asyncio.create_task(start_countdown(room,15))
+                game_rooms[room].countdown_task = asyncio.create_task(start_countdown(room,60))
         if any(res.get("type") == "turn_change" for res in responses):
                 # 방에서 턴 타이머 시작
                 game_room = game_rooms.get(room)
@@ -1200,6 +1212,6 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=3000,
-        # ssl_keyfile="./SSL/openvidu-selfsigned.key",
-        # ssl_certfile="./SSL/openvidu-selfsigned.crt",
+        ssl_keyfile="./SSL/openvidu-selfsigned.key",
+        ssl_certfile="./SSL/openvidu-selfsigned.crt",
     )
