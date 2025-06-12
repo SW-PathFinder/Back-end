@@ -321,7 +321,8 @@ class Game:
                 if end[0] == True:
                     endType = end[1]
                     endPosition = end[2]
-                    self.tasks.append({"player":self.currentPlayer,"target":"all","type":"round_end","data":{"winner":"saboteur","roles":{player:self.players[player].role for player in self.players}}})
+                    self.tasks.append({"player":self.currentPlayer,"target":"all","type":"rock_found","data":endPosition})
+                    # self.tasks.append({"player":self.currentPlayer,"target":"all","type":"round_end","data":{"winner":"saboteur","roles":{player:self.players[player].role for player in self.players}}})
             elif endType == "gold" or checkNoneCard:
                 self._aboveTrun()
                 winner = "worker" if endType == "gold" else "saboteur"
