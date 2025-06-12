@@ -62,6 +62,7 @@ class Game:
             player.hand = []
             player.role = "worker"
             player.limit = {"mineCart":False,"pickaxe":False,"lantern":False}
+            player.gold = 0
 
         self._shuffulePlayerRoles()
         self._shuffuleCards()
