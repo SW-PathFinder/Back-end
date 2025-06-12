@@ -425,7 +425,8 @@
     // 서버 연결 함수
     function connectToServer(inputName = null) {
       // 서버에 연결
-      socket = io('https://money.ipdisk.co.kr:3000');
+      // socket = io('https://money.ipdisk.co.kr:3000');
+      socket = io('http://127.0.0.1:3000');
       
       socket.on('connect', () => {
         console.log(`서버 연결됨: ${socket.id}`);

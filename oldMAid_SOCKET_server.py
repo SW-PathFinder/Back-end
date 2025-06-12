@@ -1037,6 +1037,6 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=4000,
-        ssl_keyfile="./SSL/openvidu-selfsigned.key",
-        ssl_certfile="./SSL/openvidu-selfsigned.crt",
+        # ssl_keyfile="./SSL/openvidu-selfsigned.key",
+        # ssl_certfile="./SSL/openvidu-selfsigned.crt",
     )

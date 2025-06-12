@@ -64,5 +64,5 @@ if __name__ == "__main__":
 
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
     # crt,key 파일 경로 설정
-    ssl_context.load_cert_chain(certfile='./SSL/openvidu-selfsigned.crt', keyfile='./SSL/openvidu-selfsigned.key')
+    # ssl_context.load_cert_chain(certfile='./SSL/openvidu-selfsigned.crt', keyfile='./SSL/openvidu-selfsigned.key')
     app.run(debug=True, host="0.0.0.0", port=3001, ssl_context=ssl_context)

@@ -405,7 +405,8 @@
     });    function connectToServer(inputUsername) {
       try {
         //socket = io('http://money.ipdisk.co.kr:43000', {
-        socket = io('https://money.ipdisk.co.kr:3000', {
+        // socket = io('https://money.ipdisk.co.kr:3000', {
+        socket = io('http://127.0.0.1:3000', {
 
           reconnectionAttempts: 5,
           timeout: 10000
