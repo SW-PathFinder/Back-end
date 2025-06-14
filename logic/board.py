@@ -76,14 +76,15 @@ class Board:
             return True, "gold", self.gold
         elif self.activeHasPath(self.path,self.home,self.rock[0]) and self.board[self.rock[0]].num in (-2,-4): 
             newCard = Card(self.board[self.rock[0]].num-1)
+            x, y = self.rock[0]
+            target_num = self.board[self.rock[0]].num
             # 근접 카드 위치에 따라 카드 reverse
-            if self.board[(self.rock[0][0],self.rock[0][1]-1)].num != 0 and 4 in newCard.path :
+            # 근접 카드 위치에 따라 카드 reverse
+            if self.board[x][y+1].num != 0 :
                 pass
-            elif self.board[(self.rock[0][0]-1,self.rock[0][1])].num != 0 and 1 in newCard.path:
+            elif self.board[x+1][y].num != 0 and target_num==-4:
                 pass
-            elif self.board[(self.rock[0][0],self.rock[0][1]+1)].num != 0 and 2 in newCard.path:
-                pass
-            elif self.board[(self.rock[0][0]+1,self.rock[0][1])].num != 0 and 3 in newCard.path:
+            elif self.board[x-1][y].num != 0 and target_num==-2:
                 pass
             else:
                 newCard.reversePathCard()
@@ -94,18 +95,19 @@ class Board:
             return True, "rock", rockCard
         elif self.activeHasPath(self.path,self.home,self.rock[1]) and self.board[self.rock[1]].num in (-2,-4): 
             newCard = Card(self.board[self.rock[1]].num-1)
-            if self.board[(self.rock[1][0],self.rock[1][1]-1)].num != 0 and 4 in newCard.path :
+            x, y = self.rock[1]
+            target_num = self.board[self.rock[1]].num
+            # 근접 카드 위치에 따라 카드 reverse
+            if self.board[x][y+1].num != 0 :
                 pass
-            elif self.board[(self.rock[1][0]-1,self.rock[1][1])].num != 0 and 1 in newCard.path:
+            elif self.board[x+1][y].num != 0 and target_num==-4:
                 pass
-            elif self.board[(self.rock[1][0],self.rock[1][1]+1)].num != 0 and 2 in newCard.path:
-                pass
-            elif self.board[(self.rock[1][0]+1,self.rock[1][1])].num != 0 and 3 in newCard.path:
+            elif self.board[x-1][y].num != 0 and target_num==-2:
                 pass
             else:
                 newCard.reversePathCard()
             self.board[self.rock[1]] = newCard
-            print(f"arrice rock {self.rock[1]}")
+            print(f"arrive rock {self.rock[1]}")
             rockCard = {"x":self.rock[1][0],"y":self.rock[1][1],"card":self.board[self.rock[1]].num,"reverse":self.board[self.rock[1]].flip}
             return True, "rock", rockCard
         else:
