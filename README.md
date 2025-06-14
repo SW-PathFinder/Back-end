@@ -7,24 +7,33 @@ Django 기반의 사보타지 게임 백엔드 서버
 
 ## 📌 Features
 
-- 🎙 OpenVidu 기반 n:n 음성 채팅
-- 🧩 사보타지 게임 API (게임 생성, 참여, 진행 로직 포함)
-- 🧠 AI 인턴 / 의사 / FAQ 응답 API 연동
-- 🔄 WebSocket 기반 실시간 메시징 서버 (`SOCKET_server.py`)
-- 💬 템플릿 기반 채팅방 및 게임 목록 제공 (`chat_room.html`, `game_list.html`)
-- 🧪 테스트 코드 포함 (`apps/saboteur/voice_chat/tests/`)
+<!-- - 🧩 사보타지 게임 API (게임 생성, 참여, 진행 로직 포함) -->
+- 🃏 Saboteur 게임 로직 (`logic/`)
+  - 게임 보드 관리 (`board.py`)
+  - 카드 및 플레이어 클래스 (`card.py`, `player.py`)
+  - 게임 진행 로직 (`game.py`)
+-  🔄 WebSocket 기반 실시간 게임 서버 (`SOCKET_server.py`)
+  - 게임 상태 동기화 및 실시간 이벤트 처리
+  - 게임 인증 및 관전 기능 제공
+  - 🎙 OpenVidu 기반 n:n 음성 채팅
+- 🔗 OpenVidu 인증 서버 (`openvidu-basic-python/`)
+- 🎮 도둑잡기 게임 구현 - 게임서버 재사용 (`OldMaid/`)
+- 🖥️ 프론트엔드 테스트 페이지 (`client.html`, `lobby.html`)
+- 🛠️ 관리자 페이지 (`client-server.html`)
 
 
 
 
-## 🧑‍💻 Contributors
+## 🧑‍💻 Contributors & Role Distribution
 
-| Name        | 
-|-------------|
-| Dohoon Kim | 
-| Dami Lee    | 
-| Namhoon Cho  | 
-| Jiwoo Park  | 
+| Name        | Role & Responsibilities |
+|-------------|------------------------|
+| **김도훈 (Dohoon Kim)** | **🎯 전체 기획 및 설계**<br/>• Saboteur 게임 로직 개발 (`logic/`)<br/>• WebSocket 서버 구축 (`SOCKET_server.py`)<br/>• OpenVidu 음성채팅 인증 서버 구축 (`openvidu-basic-python/`)<br/>• 백엔드-프론트엔드 통합 및 고도화<br/>• OpenVidu 서버 Deploy using Physical Server <br/>• Physical Server 구축(네트워크, SSL 인증)|
+| **조남훈 (Namhoon Cho)** | **🔄 게이트웨이 재사용성 검증**<br/>• 도둑잡기 게임 로직 개발 (`OldMaid/`)<br/>• 도둑잡기 게임 프론트엔드 개발 (`oldMaidClient.html`, `oldMaidLobby.html`) |
+| **이다미 (Dami Lee)** | **🎨 프론트엔드 개발**<br/>• 게임 테스트 페이지 개발 (`client.html`)<br/>• 관리자 페이지 개발 (`client-server.html`)<br/>• 게임 로비 UI/UX 구현 (`lobby.html`) |
+| **박지우 (Jiwoo Park)** | **🔧 인프라 구축**<br/>• OpenVidu 서버 Deploy using AWS [참고자료](https://openvidu.io/latest/docs/self-hosting/single-node/aws/install/#configuration-and-administration)|
+
+
 
 ---
 
@@ -63,21 +72,21 @@ OPENVIDU_VERIFY_SSL=false
 
 ---
 
-## 🏃 인증 서버 실행
+## 🏃 Openvidu 인증 서버 실행
 
 ```bash
 python /openvidu-basic-python/app.py
 ```
-→ 기본 접속 주소: [http://127.0.0.1:3001](http://127.0.0.1:3001)
 
-## 📡 OpenVidu 접근 방법
+## 📡 프론트엔드 및 테스트 페이지 접근 방법 (openvidu selfsign 무시)
 
 1. 브라우저에서 아래 주소 접속  
    [https://13.125.231.212:4443](https://13.125.231.212:4443)
 
 2. "이 사이트는 안전하지 않음" → "고급" 클릭
 3. "예외적으로 계속" 또는 "무시하고 접속" 선택
-
+4. 로그인창 접근 완료시 창 닫기 후 프론트엔드 접속
+<!-- 프론트엔드 페이지는 해당 url, 테스트페이지는  -->
 
 ---
 
@@ -95,8 +104,6 @@ python SOCKET_server.py
 1. username을 server로 로그인
 2. 코드검색으로 방 진입 시 관전 가능. 
 
-
-
 ---
 
 ## 💬 OldMaid 서버 실행  
@@ -110,8 +117,6 @@ python oldMAid_SOCKET_server.py
 - WebSocket 연결 및 실시간 처리 담당
 - 테스트 페이지 구현 (모든 기능 구현)
 [http://127.0.0.1:4000](http://127.0.0.1:4000)
-
-
 
 ---
 
@@ -181,6 +186,7 @@ Back-end/
 |-------------------------------|--------------------------------|
 | `python openvidu-basic-python/app.py`  | openvidu 인증서버 서버 실행          |
 | `python SOCKET_server.py`     | WebSocket 서버 실행            |
+| `python oldMAid_SOCKET_server.py` | 도둑잡기 게임 WebSocket 서버 실행 |
 
 ---
 
@@ -220,7 +226,7 @@ This project is for internal use only.
 | Font Awesome          | 6.0.0                         | 아이콘 라이브러리                      |
 | HTML5 Canvas          | -                             | 게임 보드 렌더링                       |
 | JavaScript (ES6+)     | -                             | 클라이언트 사이드 로직                 |
-| SSL Certificate       | Self-signed                   | HTTPS/WSS 보안 연결                    |
+| SSL Certificate       | CA                   | HTTPS/WSS 보안 연결                    |
 
 ### 🔧 개발 도구
 | Tool                  | Purpose                       | Description                           |
